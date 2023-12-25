@@ -5,12 +5,24 @@
   vars_files:
     - vars/main.yml
 
-  pre_tasks:
-    - name: Execute Script
-      ansible.builtin.shell:
-        cmd: echo 'Hello World'
-
   tasks:
-    - name: Execute Script
-      ansible.builtin.shell:
-        cmd: echo 'Hello World'
+    - name: Update apt package cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install Docker
+      ansible.builtin.apt:
+        name: docker.io
+        state: present
+
+    - name: Ensure Docker service is started
+      ansible.builtin.service:
+        name: docker
+        state: started
+
+    - name: Add user to the docker group (optional, for non-root access)
+      ansible.builtin.user:
+        name: "{{ docker_user }}"
+        groups: docker
+      when: docker_user is defined
+
