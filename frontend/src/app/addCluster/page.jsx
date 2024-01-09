@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Navbar from '../Components/navbar';
 import Axios from 'axios';
 import { FaTrash } from 'react-icons/fa';
+import Swal from 'sweetalert2'
 
 const AddCluster = () => {
   const [boxes, setBoxes] = useState([]);
@@ -55,6 +56,26 @@ const AddCluster = () => {
     }
   };
 
+  const PowerOnVagrant = async () => {
+    try {
+      const response = await Axios.get('http://127.0.0.1:5000/vagrant_up_all');
+
+      Swal.fire({
+        title: 'Success!',
+        text: JSON.stringify(response.data.message),
+        icon: 'success'
+      })
+      // console.log(response.data); // Log the response data to the console
+    } catch (error) {
+      console.error('Error making Axios request:', error);
+      Swal.fire({
+        title: 'Failure!',
+        text: JSON.stringify(error.message),
+        icon: 'error'
+      })
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col items-center text-white w-screen">
         <Navbar title={"Add Cluster To Your Resources"} />
@@ -68,7 +89,7 @@ const AddCluster = () => {
               </div> 
             </div>
             <div className='flex flex-2 w-1/3 gap-[5%] items-center justify-start '>
-              <button type="button" className="w-auto w-full font-bold bg-[#132577] rounded mt-4 text-white p-3">
+              <button type="button" onClick={PowerOnVagrant} className="w-auto w-full font-bold bg-[#132577] rounded mt-4 text-white p-3">
                   Power On
               </button>
               <button type="button" className="w-auto w-full font-bold bg-[#132577] rounded mt-4 text-white p-3">
