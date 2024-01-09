@@ -37,7 +37,9 @@ const VersionControl = () => {
   return (
     <div className="h-screen flex flex-col gap-[10%] items-center text-white w-screen">
       <MainNavbar className="" title="HPC MLOPs Infrastructure" pages={pages} />
-
+      <div className='flex-1 text-[#132577] text-xl font-bold'>
+        Versions Management
+      </div>
       <div className="text-sm flex flex-col px-[10%] w-full justify-center gap-4">
         {versions.map((version, index) => (
           <div key={index} className="flex items-center justify-between rounded-md bg-[#132577] border p-8">
