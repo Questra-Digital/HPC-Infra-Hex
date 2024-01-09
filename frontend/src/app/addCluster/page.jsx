@@ -48,6 +48,17 @@ const AddCluster = () => {
 
   const handleSave = async () => {
     try {
+
+    //   {
+    //     "nums_vms": 2,
+    //     "vm_box": "bento/ubuntu-20.04",
+    //     "boxes": [
+    //         {"name": "master", "ip": "192.168.56.10"}
+    //     ],
+    //     "vm_memory": 2048,
+    //     "vm_Cpu": 2
+    // }
+    
       const payload = {
         nums_vms: numBoxes,
         vm_box: 'ubuntu/jammy64',
@@ -131,7 +142,7 @@ const AddCluster = () => {
                           <label className="mb-2">Select Vagrant Box:</label>
                           <select className="p-2 text-black rounded">
                           <option value="ubuntu/jammy64">ubuntu/jammy64</option>
-                          <option value="ubuntu/jammy64">bento/ubuntu-20.04</option>
+                          <option value="bento/ubuntu-20.04">bento/ubuntu-20.04</option>
                           </select>
                       </div>
 
