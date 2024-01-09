@@ -45,7 +45,7 @@ const AddCluster = () => {
         Run Command On VmWares
       </div>
 
-      <div className='flex items-center justify-center gap-[5%] text-black text-sm w-full px-[15%] py-[3%]'>
+      <div className='flex items-center justify-center gap-[5%] text-black text-sm w-full px-[15%] pt-[5%] pb-[2%]'>
         <input
           type="text"
           placeholder="Enter Command here"
@@ -56,13 +56,13 @@ const AddCluster = () => {
         />
       </div>
 
-      <div className='flex items-center justify-center gap-[5%] text-black text-sm w-full px-[15%]'>
+      <div className='flex items-center justify-center gap-[5%] text-black text-sm w-full px-[15%] pb-[5%]'>
         <textarea
           type="text"
           placeholder="Command Response Here"
           value={commandResponse}
           onChange={(e) => handleCommandResponse(e.target.value)}
-          className="w-full h-40 bg-gray-200 rounded text-black p-4"
+          className="w-full h-60 bg-gray-200 rounded text-black p-4"
         />
       </div>
 
