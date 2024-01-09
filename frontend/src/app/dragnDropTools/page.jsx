@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import Navbar from '../Components/navbar';
 import { useDrag, DndProvider, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import MainNavbar from '../Components/Shared/MainNavbar';
+import Footer from '../Components/Footer';
 
 const ItemTypes = {
   TOOL: 'tool',
@@ -64,8 +66,18 @@ const ClusterSpace = ({ droppedTools, onDrop }) => {
 };
 
 const DragAndDropPage = () => {
+  
   const [tools, setTools] = useState(['Docker', 'Kubernetes', 'Other Tool']);
   const [droppedTools, setDroppedTools] = useState([]);
+  const pages = [
+    { title: 'Home', link: '/' },
+    { title: 'About Us', link: '/about' },
+    { title: 'Portfolio', link: '/portfolio' },
+    { title: 'Expertise', link: '/expertise' },
+    { title: 'Clients', link: '/clients' },
+    { title: 'Services', link: '/services' },
+    { title: 'Contact', link: '/contact' },
+  ]; 
 
   const handleDrop = (toolName) => {
     if (droppedTools.includes(toolName)) {
@@ -79,7 +91,7 @@ const DragAndDropPage = () => {
 
   return (
     <div className="h-screen flex flex-col items-center text-white w-screen">
-      <Navbar title={"Add Cluster To Your Resources"} />
+      <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" pages={pages} />
       <div className='flex  flex-col gap-[5%] px-[5%] py-[2%] w-full text-black'>
        
         <div className='flex-1 flex items-center justify-start '>
@@ -114,7 +126,7 @@ const DragAndDropPage = () => {
           </div>
       </DndProvider>
       </div>
-     
+     <Footer/>
     </div>
    
   );
