@@ -124,18 +124,39 @@ def vagrant_up_all():
     except Exception as e:
         return jsonify({'result': 'error', 'message': str(e)}), 500
 
-@app.route('/run-command/<machine_name>', methods=['GET'])
+# @app.route('/run-command/<machine_name>', methods=['GET'])
+# def run_command(machine_name):
+#     try:
+#         # Ensure the specific virtual machine is running
+#         # SSH into the virtual machine and run a command (e.g., 'hostname')
+#         result = v.ssh(command='which docker', vm_name=machine_name)
+
+#         return jsonify({'result': 'success', 'output': result})
+
+#     except Exception as e:
+#         return jsonify({'result': 'error', 'message': str(e)}), 500
+
+@app.route('/run-command/<machine_name>', methods=['POST'])
 def run_command(machine_name):
     try:
         # Ensure the specific virtual machine is running
-        # SSH into the virtual machine and run a command (e.g., 'hostname')
-        result = v.ssh(command='which docker', vm_name=machine_name)
+        # v.ssh is assumed to be a function or class that handles SSH connections
 
+        # Extract the command from the POST request body
+        command = request.json.get('command')
+
+        if not command:
+            return jsonify({'result': 'error', 'message': 'Command not provided in the request body'}), 400
+
+        result = v.ssh(command=command, vm_name=machine_name)
+
+        # Return a JSON response with the result and output
         return jsonify({'result': 'success', 'output': result})
 
     except Exception as e:
+        # In case of an exception, return an error response with the exception message
         return jsonify({'result': 'error', 'message': str(e)}), 500
-
+    
 @app.route('/generate_vagrantfile', methods=['POST'])
 def generate_vagrantfile_api():
     data = request.get_json()
