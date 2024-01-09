@@ -1,3 +1,4 @@
+"use client"
 import React, { useState } from 'react';
 import Navbar from '../Components/navbar';
 import { useDrag, DndProvider, useDrop } from 'react-dnd';
@@ -52,13 +53,9 @@ const ClusterSpace = ({ droppedTools, onDrop }) => {
       style={{
         border: '2px dashed #000',
         backgroundImage: 'url("Dots.svg")', 
-        // padding: '20px',
-        // height: '400px',
-        // overflowY: 'auto',
         backgroundColor: isActive ? '#F3F3F3' : 'white',
       }}
     >
-      {/* <h2 className='text-lg md:text-xl font-semibold'>Cluster Space</h2> */}
       {droppedTools.map((tool, index) => (
         <DroppedTool key={index} name={tool} onDrop={onDrop} />
       ))}
@@ -72,11 +69,9 @@ const DragAndDropPage = () => {
 
   const handleDrop = (toolName) => {
     if (droppedTools.includes(toolName)) {
-      // Tool is dragged from the cluster space to the tools list
-      setDroppedTools((prevTools) => prevTools.filter((tool) => tool !== toolName));
-      setTools((prevTools) => [...prevTools, toolName]);
+      // setDroppedTools((prevTools) => prevTools.filter((tool) => tool !== toolName));
+      // setTools((prevTools) => [...prevTools, toolName]);
     } else {
-      // Tool is dragged from the tools list to the cluster space
       setTools((prevTools) => prevTools.filter((tool) => tool !== toolName));
       setDroppedTools((prevTools) => [...prevTools, toolName]);
     }
@@ -88,10 +83,18 @@ const DragAndDropPage = () => {
       <div className='flex  flex-col gap-[5%] px-[5%] py-[2%] w-full text-black'>
        
         <div className='flex-1 flex items-center justify-start '>
-          <img src="/ClsuterIcon.svg" className="flex w-28 md:block" />
-          <div className='flex-2 h-auto '>
-            <h1 className="text-lg md:text-xl font-semibold">Cluster Name</h1>
-          </div>   
+          <div className='flex flex-1 items-center justify-start'>
+            <img src="/ClsuterIcon.svg" className="flex w-28 md:block" />
+            <div className='flex-2 h-auto '>
+              <h1 className="text-lg md:text-xl font-semibold">Cluster Name</h1>
+            </div> 
+          </div>
+          <div className='flex flex-2 items-center justify-start '>
+            <button type="button" className="w-auto w-full font-bold bg-[#132577] rounded mt-4 text-white p-3">
+                Deploy Tools
+            </button>
+          </div>
+            
         </div>
 
         <DndProvider className="flex-2 flex w-screen" backend={HTML5Backend}>
