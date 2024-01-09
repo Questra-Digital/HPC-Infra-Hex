@@ -28,77 +28,61 @@ def ensure_all_machines_running():
 
 
 def generate_vagrantfile(payload):
-    vagrantfile_content = f"""# -*- mode: ruby -*-
-# vi: set ft=ruby :
+    # Extract information from the payload
+    nums_vms = payload["nums_vms"]-1
+    vm_box = payload["vm_box"]
+    first_ip = payload["boxes"][0]["ip"]
+    master_node_name = payload["boxes"][0]["name"]
+    vm_memory = payload.get("vm_memory", 2048)  # Default to 2048 if not specified in payload
+    vm_cpu = payload.get("vm_Cpu", 2)  # Default to 2 CPUs if not specified in payload
 
-Vagrant.require_version ">= 2.3.0"
+    # Get the first three octets of the IP address
+    first_three_octets = '.'.join(first_ip.split('.')[:3])
 
-VAGRANTFILE_API_VERSION = "2"
+    # Vagrantfile content template
+    vagrantfile_content = f"""IMAGE_NAME = "{vm_box}"
+N = {nums_vms}
 
-Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "{payload['vm_box']}"
-  config.vm.box_version = "{payload['vm_box_version']}"
-  config.ssh.insert_key = false
-  config.vm.provider "virtualbox"
+Vagrant.configure("2") do |config|
+    config.ssh.insert_key = false
 
-  config.vm.provider :virtualbox do |v|
-    v.memory = {payload['vm_memory']}
-    v.cpus = {payload['vm_Cpu']}
-    v.linked_clone = true
-  end
-
-  boxes = [
-"""
-
-    for vm in payload['boxes']:
-        vagrantfile_content += f"""    {{ :name => "{vm['name']}", :ip => "{vm['ip']}" }},
-"""
-
-    vagrantfile_content += f"""  ]
-  
-  # Define VMs with dynamic private IP addresses.
-  boxes.each do |opts|
-    config.vm.define opts[:name] do |config|
-      config.vm.hostname = opts[:name] + ".k8s.test"
-      config.vm.network :private_network, ip: opts[:ip]
-
-      # Provision all the VMs using Ansible after the last VM is up.
-      if opts[:name] == "{payload['boxes'][-1]['name']}"
-        config.vm.provision "ansible" do |ansible|
-          ansible.playbook = "playbook/main.yml"
-          ansible.inventory_path = "playbook/inventory"
-          ansible.config_file = "playbook/ansible.cfg"
-          ansible.limit = "all"
-        end
-      end
+    config.vm.provider "virtualbox" do |v|
+        v.memory = {vm_memory}
+        v.cpus = {vm_cpu}
     end
-  end
+      
+    config.vm.define "{master_node_name}" do |master|
+        master.vm.box = IMAGE_NAME
+        master.vm.network "private_network", ip: "{first_ip}"
+        master.vm.hostname = "{master_node_name}"
+        master.vm.provision "ansible" do |ansible|
+            ansible.playbook = "kubernetes-setup/master-playbook.yml"
+        end
+    end
+
+    (1..N).each do |i|
+        config.vm.define "node-#{{i}}" do |node|
+            node.vm.box = IMAGE_NAME
+            node.vm.network "private_network", ip: "{first_three_octets}.#{{i + 10}}"
+            node.vm.hostname = "node-#{{i}}"
+            node.vm.provision "ansible" do |ansible|
+                ansible.playbook = "kubernetes-setup/node-playbook.yml"
+            end
+        end
+    end
 end
 """
 
+    # Write the Vagrantfile content to a file
     with open("Vagrantfile", "w") as file:
         file.write(vagrantfile_content)
 
     print("\nVagrantfile generated successfully!")
 
+# Example usage with the provided payload
 
 
-    with open("playbook/inventory", "w") as inventory_file:
-        inventory_file.write(f"[k8s-master]\nmaster ansible_host={payload['boxes'][0]['ip']}\n\n")
-        
-        inventory_file.write("[k8s-nodes]\n")
-        for vm in payload['boxes'][1:]:
-            inventory_file.write(f"{vm['name']} ansible_host={vm['ip']}\n")
-        inventory_file.write("\n")
-
-        inventory_file.write("[k8s:children]\n")
-        inventory_file.write("k8s-master\nk8s-nodes\n\n")
-
-        inventory_file.write("[k8s:vars]\n")
-        inventory_file.write("ansible_user=vagrant\n")
-        inventory_file.write("ansible_ssh_private_key_file=~/.vagrant.d/insecure_private_key\n")
-
-    print("Ansible inventory file generated successfully!")
+ 
 
 @app.route('/vagrant_status', methods=['GET'])
 def vagrant_status():
@@ -124,16 +108,25 @@ def vagrant_up_all():
     except Exception as e:
         return jsonify({'result': 'error', 'message': str(e)}), 500
 
-@app.route('/run-command/<machine_name>', methods=['GET'])
+@app.route('/run-command/<machine_name>', methods=['POST'])
 def run_command(machine_name):
     try:
         # Ensure the specific virtual machine is running
-        # SSH into the virtual machine and run a command (e.g., 'hostname')
-        result = v.ssh(command='which docker', vm_name=machine_name)
+        # v.ssh is assumed to be a function or class that handles SSH connections
 
+        # Extract the command from the POST request body
+        command = request.json.get('command')
+
+        if not command:
+            return jsonify({'result': 'error', 'message': 'Command not provided in the request body'}), 400
+
+        result = v.ssh(command=command, vm_name=machine_name)
+
+        # Return a JSON response with the result and output
         return jsonify({'result': 'success', 'output': result})
 
     except Exception as e:
+        # In case of an exception, return an error response with the exception message
         return jsonify({'result': 'error', 'message': str(e)}), 500
 
 @app.route('/generate_vagrantfile', methods=['POST'])
