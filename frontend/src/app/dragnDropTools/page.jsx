@@ -80,15 +80,6 @@ const DragAndDropPage = () => {
     const selectedFile = e.target.files[0]; // Get the selected file
     setScriptFile(selectedFile); // Update the state with the selected file
   };
-  const pages = [
-    { title: 'Home', link: '/' },
-    { title: 'About Us', link: '/about' },
-    { title: 'Portfolio', link: '/portfolio' },
-    { title: 'Expertise', link: '/expertise' },
-    { title: 'Clients', link: '/clients' },
-    { title: 'Services', link: '/services' },
-    { title: 'Contact', link: '/contact' },
-  ];
 
   const fetchDataFromAPI = async () => {
     try {
@@ -206,7 +197,7 @@ const DragAndDropPage = () => {
 
   return (
     <div className="h-screen flex flex-col items-center text-white w-screen">
-      <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" pages={pages} />
+      <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure"  />
       <div className='flex  flex-col gap-[5%] px-[5%] py-[2%] w-full text-black'>
         <div className='flex-1 flex items-center justify-start '>
           <div className='flex flex-1 items-center justify-start'>

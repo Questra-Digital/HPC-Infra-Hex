@@ -10,20 +10,11 @@ import Footer from '../Components/Footer';
 import MainNavbar from '../Components/Shared/MainNavbar';
 
 const LandingPage = () => {
-    const pages = [
-        { title: 'Home', link: '/' },
-        { title: 'About Us', link: '/about' },
-        { title: 'Portfolio', link: '/portfolio' },
-        { title: 'Expertise', link: '/expertise' },
-        { title: 'Clients', link: '/clients' },
-        { title: 'Services', link: '/services' },
-        { title: 'Contact', link: '/contact' },
-      ];    
 
   return (
     <div className="h-screen flex flex-col gap-[10%] items-center text-white w-screen">
         <div className='flex-1'>
-            <MainNavbar className="" title="HPC MLOPs Infrastructure" pages={pages}/>
+            <MainNavbar className="" title="HPC MLOPs Infrastructure" />
             <LandingPageHeader className=""  />
         </div>
         <Services className="flex-2"/>

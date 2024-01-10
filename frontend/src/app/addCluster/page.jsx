@@ -8,16 +8,7 @@ import MainNavbar from '../Components/Shared/MainNavbar';
 import Footer from '../Components/Footer';
 
 const AddCluster = () => {
-  const pages = [
-    { title: 'Home', link: '/' },
-    { title: 'About Us', link: '/about' },
-    { title: 'Portfolio', link: '/portfolio' },
-    { title: 'Expertise', link: '/expertise' },
-    { title: 'Clients', link: '/clients' },
-    { title: 'Services', link: '/services' },
-    { title: 'Contact', link: '/contact' },
-  ];
-
+  
   const [boxes, setBoxes] = useState([]);
   const [boxVersion, setBoxVersion] = useState('20230729.0.0');
   const [memory, setMemory] = useState('');
@@ -121,7 +112,7 @@ const AddCluster = () => {
 
   return (
     <div className="h-screen flex flex-col items-center text-white w-screen">
-        <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" pages={pages} />
+        <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" />
         <div className='mt-10 flex-1 text-[#132577] text-xl font-bold'>
             Add Resources To Cluster
         </div>

@@ -4,20 +4,12 @@ import Footer from '../Components/Footer';
 import MainNavbar from '../Components/Shared/MainNavbar';
 
 const RegisterAsRootUser = () => {
-    const pages = [
-        { title: 'Home', link: '/' },
-        { title: 'About Us', link: '/about' },
-        { title: 'Portfolio', link: '/portfolio' },
-        { title: 'Expertise', link: '/expertise' },
-        { title: 'Clients', link: '/clients' },
-        { title: 'Services', link: '/services' },
-        { title: 'Contact', link: '/contact' },
-      ];    
+     
 
   return (
     <div className="h-screen flex flex-col gap-[10%] items-center  text-white w-screen">
         <div className='flex-1 w-full h-auto  flex flex-col text-white bg-[#132577]'>
-            <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" pages={pages}/>
+            <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" />
             <div className='p-10 py-5 flex-2  w-full text-center flex items-center justify-center'>
                 <div className='flex-1 text-lg font-bold'>Register as a root user of  an organization</div>
             </div>

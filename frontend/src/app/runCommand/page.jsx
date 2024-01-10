@@ -8,16 +8,6 @@ const AddCluster = () => {
   const [command, setCommand] = useState('');
   const [commandResponse, setCommandResponse] = useState('');
   
-  const pages = [
-    { title: 'Home', link: '/' },
-    { title: 'About Us', link: '/about' },
-    { title: 'Portfolio', link: '/portfolio' },
-    { title: 'Expertise', link: '/expertise' },
-    { title: 'Clients', link: '/clients' },
-    { title: 'Services', link: '/services' },
-    { title: 'Contact', link: '/contact' },
-  ]; 
-
   const handleCommand = (com) => {
     setCommand(com);
   };
@@ -39,7 +29,7 @@ const AddCluster = () => {
 
   return (
     <div className="h-screen flex flex-col items-center text-white w-screen">
-      <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" pages={pages} />
+      <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure"  />
 
       <div className='mt-10 flex-1 text-[#132577] text-xl font-bold'>
         Run Command On VmWares
