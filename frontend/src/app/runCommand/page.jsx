@@ -7,6 +7,7 @@ import Footer from '../Components/Footer';
 const AddCluster = () => {
   const [command, setCommand] = useState('');
   const [commandResponse, setCommandResponse] = useState('');
+  const [vmware, setVmWare] = useState('');
   
   const handleCommand = (com) => {
     setCommand(com);
@@ -19,7 +20,7 @@ const AddCluster = () => {
   const handleEnterPress = async (e) => {
     if (e.key === 'Enter') {
       try {
-        const response = await Axios.post('http://127.0.0.1:5000/run-command/master', { command });
+        const response = await Axios.post(`http://127.0.0.1:5000/run-command/${vmware}`, { command });
         setCommandResponse(JSON.stringify(response.data));
       } catch (error) {
         setCommandResponse(JSON.stringify(error));
@@ -35,7 +36,14 @@ const AddCluster = () => {
         Run Command On VmWares
       </div>
 
-      <div className='flex items-center justify-center gap-[5%] text-black text-sm w-full px-[15%] pt-[5%] pb-[2%]'>
+      <div className=" text-black text-sm flex mb-4 flex-col flex-1 w-full px-[15%] pt-[2%] pb-[0%]">
+          <label className="mb-2">Select VmWare:</label>
+          <select onChange={(e) => {setVmWare(e.target.value)}} className="bg-gray-300 p-[2%] text-black rounded">
+            <option value="master">master</option>
+          </select>
+      </div>
+
+      <div className='flex items-center justify-center gap-[5%] text-black text-sm w-full px-[15%] pt-[0%] pb-[2%]'>
         <input
           type="text"
           placeholder="Enter Command here"
