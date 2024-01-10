@@ -28,60 +28,77 @@ def ensure_all_machines_running():
 
 
 def generate_vagrantfile(payload):
-    # Extract information from the payload
-    nums_vms = payload["nums_vms"]-1
-    vm_box = payload["vm_box"]
-    first_ip = payload["boxes"][0]["ip"]
-    master_node_name = payload["boxes"][0]["name"]
-    vm_memory = payload.get("vm_memory", 2048)  # Default to 2048 if not specified in payload
-    vm_cpu = payload.get("vm_Cpu", 2)  # Default to 2 CPUs if not specified in payload
+    vagrantfile_content = f"""# -*- mode: ruby -*-
+# vi: set ft=ruby :
 
-    # Get the first three octets of the IP address
-    first_three_octets = '.'.join(first_ip.split('.')[:3])
+Vagrant.require_version ">= 2.3.0"
 
-    # Vagrantfile content template
-    vagrantfile_content = f"""IMAGE_NAME = "{vm_box}"
-N = {nums_vms}
+VAGRANTFILE_API_VERSION = "2"
 
-Vagrant.configure("2") do |config|
-    config.ssh.insert_key = false
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "{payload['vm_box']}"
+  config.vm.box_version = "{payload['vm_box_version']}"
+  config.ssh.insert_key = false
+  config.vm.provider "virtualbox"
 
-    config.vm.provider "virtualbox" do |v|
-        v.memory = {vm_memory}
-        v.cpus = {vm_cpu}
-    end
-      
-    config.vm.define "{master_node_name}" do |master|
-        master.vm.box = IMAGE_NAME
-        master.vm.network "private_network", ip: "{first_ip}"
-        master.vm.hostname = "{master_node_name}"
-        master.vm.provision "ansible" do |ansible|
-            ansible.playbook = "kubernetes-setup/master-playbook.yml"
+  config.vm.provider :virtualbox do |v|
+    v.memory = {payload['vm_memory']}
+    v.cpus = {payload['vm_Cpu']}
+    v.linked_clone = true
+  end
+
+  boxes = [
+"""
+
+    for vm in payload['boxes']:
+        vagrantfile_content += f"""    {{ :name => "{vm['name']}", :ip => "{vm['ip']}" }},
+"""
+
+    vagrantfile_content += f"""  ]
+  
+  # Define VMs with dynamic private IP addresses.
+  boxes.each do |opts|
+    config.vm.define opts[:name] do |config|
+      config.vm.hostname = opts[:name] + ".k8s.test"
+      config.vm.network :private_network, ip: opts[:ip]
+
+      # Provision all the VMs using Ansible after the last VM is up.
+      if opts[:name] == "{payload['boxes'][-1]['name']}"
+        config.vm.provision "ansible" do |ansible|
+          ansible.playbook = "playbook/main.yml"
+          ansible.inventory_path = "playbook/inventory"
+          ansible.config_file = "playbook/ansible.cfg"
+          ansible.limit = "all"
         end
+      end
     end
-
-    (1..N).each do |i|
-        config.vm.define "node-#{{i}}" do |node|
-            node.vm.box = IMAGE_NAME
-            node.vm.network "private_network", ip: "{first_three_octets}.#{{i + 10}}"
-            node.vm.hostname = "node-#{{i}}"
-            node.vm.provision "ansible" do |ansible|
-                ansible.playbook = "kubernetes-setup/node-playbook.yml"
-            end
-        end
-    end
+  end
 end
 """
 
-    # Write the Vagrantfile content to a file
     with open("Vagrantfile", "w") as file:
         file.write(vagrantfile_content)
 
     print("\nVagrantfile generated successfully!")
 
-# Example usage with the provided payload
 
 
+    with open("playbook/inventory", "w") as inventory_file:
+        inventory_file.write(f"[k8s-master]\nmaster ansible_host={payload['boxes'][0]['ip']}\n\n")
+        
+        inventory_file.write("[k8s-nodes]\n")
+        for vm in payload['boxes'][1:]:
+            inventory_file.write(f"{vm['name']} ansible_host={vm['ip']}\n")
+        inventory_file.write("\n")
+
+        inventory_file.write("[k8s:children]\n")
+        inventory_file.write("k8s-master\nk8s-nodes\n\n")
+
+        inventory_file.write("[k8s:vars]\n")
+        inventory_file.write("ansible_user=vagrant\n")
+        inventory_file.write("ansible_ssh_private_key_file=~/.vagrant.d/insecure_private_key\n")
+
+    print("Ansible inventory file generated successfully!")
  
 
 @app.route('/vagrant_status', methods=['GET'])
@@ -124,15 +141,22 @@ def run_command(machine_name):
 
         # Return a JSON response with the result and output
         return jsonify({'result': 'success', 'output': result})
-
+ 
     except Exception as e:
         # In case of an exception, return an error response with the exception message
-        return jsonify({'result': 'error', 'message': str(e)}), 500
+        return jsonify({'result': 'error', 'message': str(e)}), 200
 
 @app.route('/generate_vagrantfile', methods=['POST'])
 def generate_vagrantfile_api():
     data = request.get_json()
     generate_vagrantfile(data)
+    playbook_file_path = os.path.join(os.path.dirname(__file__), 'playbook', 'main.yml')
+    echo_document = yml_collection.find_one({"tool_name": "echo"})
+    echo_data = echo_document["script_data"]
+
+    # Write the YAML data to playbook/main.yml
+    with open(playbook_file_path, 'w') as playbook_file:
+        yaml.dump(echo_data, playbook_file)
     return jsonify({"message": "Vagrantfile generated successfully!"})
 
 def run_ansible_playbook():
@@ -149,10 +173,10 @@ def run_ansible_playbook():
     except Exception as e:
         return f"An error occurred: {str(e)}"
 
-@app.route('/install-playbook/<int:script_id>', methods=['GET'])
-def install_playbook_on_vms(script_id):
+@app.route('/install-playbook/<string:tool_name>', methods=['GET'])
+def install_playbook_on_vms(tool_name):
     try:
-        script_document = yml_collection.find_one({"script_id": script_id})
+        script_document = yml_collection.find_one({"tool_name": tool_name})
         if script_document:
             yaml_data = script_document["script_data"]
             
@@ -162,8 +186,18 @@ def install_playbook_on_vms(script_id):
             # Write the YAML data to playbook/main.yml
             with open(playbook_file_path, 'w') as playbook_file:
                 yaml.dump(yaml_data, playbook_file)
-            # Run the Ansible playbook
+
+            yml_collection.update_one({"tool_name": tool_name}, {"$set": {"is_installed": True}})
             result = run_ansible_playbook()
+            # Continue with the execution of your Python code
+            os.remove(playbook_file_path)
+            echo_document = yml_collection.find_one({"tool_name": "echo"})
+            echo_data = echo_document["script_data"]
+
+            # Write the YAML data to playbook/main.yml
+            with open(playbook_file_path, 'w') as playbook_file:
+                yaml.dump(echo_data, playbook_file)
+            
             return jsonify({'result': 'success', 'message': result})
         else:
             return jsonify({'result': 'error', 'message': 'Script not found'}), 404
@@ -196,7 +230,8 @@ def upload_yaml():
         yml_collection.insert_one({
             "script_id": script_id,
             "script_data": yaml_data,
-            "tool_name": tool_name
+            "tool_name": tool_name,
+            "is_installed": False
         })
         
         return jsonify({"message": "YAML file uploaded successfully"}), 200
@@ -211,6 +246,29 @@ def get_yaml_script(script_id):
         return jsonify(script_document["script_data"]), 200
     else:
         return jsonify({"error": "Script not found"}), 404
+
+@app.route('/get-all-playbooks', methods=['GET'])
+def get_all_playbooks():
+    try:
+        # Retrieve all documents from the collection
+        all_playbooks = list(yml_collection.find({}))
+        
+        # Create a list to store the results
+        playbooks_list = []
+        
+        # Iterate through the documents and extract relevant information
+        for playbook in all_playbooks:
+            playbook_info = {
+                "script_id": playbook["script_id"],
+                "tool_name": playbook["tool_name"],
+                "is_installed": playbook["is_installed"]
+            }
+            playbooks_list.append(playbook_info)
+        
+        return jsonify({'result': 'success', 'playbooks': playbooks_list})
+    
+    except Exception as e:
+        return jsonify({'result': 'error', 'message': str(e)}), 500
     
 if __name__ == '__main__':
     app.run(debug=True)

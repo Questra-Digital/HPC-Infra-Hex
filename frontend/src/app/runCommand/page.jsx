@@ -30,7 +30,7 @@ const AddCluster = () => {
     if (e.key === 'Enter') {
       try {
         const response = await Axios.post('http://127.0.0.1:5000/run-command/master', { command });
-        setCommandResponse(JSON.stringify(response.data.output));
+        setCommandResponse(JSON.stringify(response.data));
       } catch (error) {
         setCommandResponse(JSON.stringify(error));
       }

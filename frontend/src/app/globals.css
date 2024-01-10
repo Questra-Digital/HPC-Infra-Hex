@@ -1,3 +1,72 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Modal Styles */
+.custom-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.custom-modal-overlay {
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Modal Title */
+.modal-title {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+/* Form Group (Input Fields) */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+/* Button Group */
+.button-group {
+  display: flex;
+  justify-content: space-between;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background-color: #ccc;
+  color: #fff;
+}
+
+.btn-upload {
+  background-color: #007bff;
+  color: #fff;
+}
+
+.btn:hover {
+  opacity: 0.8;
+}

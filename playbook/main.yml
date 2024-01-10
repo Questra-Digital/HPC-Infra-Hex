@@ -1,28 +1,7 @@
----
-- hosts: k8s
-  become: yes
-
-  vars_files:
-    - vars/main.yml
-
+- become: true
+  hosts: k8s
   tasks:
-    - name: Update apt package cache
-      ansible.builtin.apt:
-        update_cache: yes
-
-    - name: Install Docker
-      ansible.builtin.apt:
-        name: docker.io
-        state: present
-
-    - name: Ensure Docker service is started
-      ansible.builtin.service:
-        name: docker
-        state: started
-
-    - name: Add user to the docker group (optional, for non-root access)
-      ansible.builtin.user:
-        name: "{{ docker_user }}"
-        groups: docker
-      when: docker_user is defined
-
+  - command: echo "Hello, World!"
+    name: Execute Echo Command
+  vars_files:
+  - vars/main.yml
