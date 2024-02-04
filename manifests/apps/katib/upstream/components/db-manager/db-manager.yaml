@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: katib-db-manager
+  namespace: kubeflow
+  labels:
+    katib.kubeflow.org/component: db-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      katib.kubeflow.org/component: db-manager
+  template:
+    metadata:
+      labels:
+        katib.kubeflow.org/component: db-manager
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: katib-db-manager
+          image: docker.io/kubeflowkatib/katib-db-manager
+          env:
+            - name: DB_NAME
+              value: "mysql"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: katib-mysql-secrets
+                  key: MYSQL_ROOT_PASSWORD
+          command:
+            - "./katib-db-manager"
+          ports:
+            - name: liveness-port
+              containerPort: 8080
+              hostPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: liveness-port
+            failureThreshold: 1
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: liveness-port
+            failureThreshold: 30
+            periodSeconds: 10
+
