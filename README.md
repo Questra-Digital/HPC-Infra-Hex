@@ -46,3 +46,6 @@ npm install
 npm run dev
 
 Test line
+
+### Kubtctl config
+scp vagrant@192.168.56.10:/home/vagrant/.kube/config ~/.kube/config
