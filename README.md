@@ -1,48 +1,19 @@
-## Development environment Setup
+# Kubeflow - Configuration
 
+# Installation
+- Run the following command in the terminal:
+`while ! kustomize build example | kubectl apply -f -; do echo "Retrying to apply resources"; sleep 10; done`
+- use `kubectl get pods -n kubeflow` to check the deployment status
+- When all pods are running, use `kubectl port-forward svc/istio-ingressgateway -n istio-system --address=0.0.0.0 8080:80` and go to localhost:8080 to view the dashboard.
 
-### Install Vagrant
-https://developer.hashicorp.com/vagrant/downloads
+# Issues
 
-```bash
-wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-sudo apt update && sudo apt install vagrant
-```
+- Currently there are issues in:
+1. katib-db-manager ([Issue #7][kf1])
+2. metadata-grpc-deployment
+3. metadata-writer
+4. ml-pipeline
 
-### Install Virtualbox
-https://www.virtualbox.org/wiki/Linux_Downloads
+Fixing katib-db-manager will probably fix other crashes too.
 
-sudo dpkg -i ~/Downloads/virtualbox-7.0_7.0.10-158379~Ubuntu~jammy_amd64.deb
-sudo apt --fix-broken install
-
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian jammy contrib" | sudo tee /etc/apt/sources.list.d/virtualbox.list
-
-wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --dearmor -o /usr/share/keyrings/oracle-virtualbox-2016.gpg
-
-sudo apt-get update && sudo apt-get install virtualbox-7.0
-
-### Install Ansible
-https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html
-
-curl https://bootstrap.pypa.io/get-pip.py -o ~/Downloads/get-pip.py
-
-python3 ~/Downloads/get-pip.py --user
-
-python3 -m pip install --user ansible
-
-python3 -m pip install --user argcomplete
-
-activate-global-python-argcomplete --user
-source ~/.bash_completion
-
-### Backend Server
-python3 main.py
-
-### Frontend Server
-
-npm install
-
-npm run dev
-
-Test line
+[kf1]: https://github.com/Questra-Digital/HPC-Infra-Hex/issues/7
