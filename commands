@@ -1,0 +1,50 @@
+kubectl port-forward service/rel-chart 8080:80
+kubectl get services
+kubectl describe service your-service-name
+kubectl get pods
+kubectl get deployments
+kubectl port-forward service/kubeapps -n new-kubeapps 8080:80
+kubectl get svc -n jhub proxy-public -o jsonpath='{.spec.ports[0].nodePort}'
+		
+		
+#commands to setup the jupyter hub
+
+#Login to k8s-master
+vagrant ssh k8s-master
+cd ..
+cd ..
+mkdir shared
+mkdir nfs
+sudo nano /etc/exports
+# paste this "/shared/nfs *(rw,sync,no_subtree_check)"
+exit
+
+# install nfs in node 1 - node 2 by 
+vagrant ssh node-1	
+sudo apt update
+sudo apt install nfs-common
+sudo mkdir /mnt/nfs
+sudo mount 192.168.56.10:/shared/nfs /mnt/nfs
+exit
+
+#same for node-2
+
+#now there is a file values in the repo if you have helm installed 
+helm upgrade --cleanup-on-fail --install my-jupyter jupyterhub/jupyterhub --namespace jhub --create-namespace --values values.yaml
+
+
+#create storage class 
+kubectl apply -f nfs-storage-class.yaml 
+
+#create pv 
+
+kubectl apply -f my-nfs-pv.yaml
+
+
+sudo systemctl restart nfs-server
+
+sudo mount -t nfs 192.168.56.10:/shared/nfs /mnt
+
+kubectl get svc -n jhub proxy-public -o jsonpath='{.spec.ports[0].nodePort}'
+
+

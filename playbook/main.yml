@@ -1,7 +1,0 @@
-- become: true
-  hosts: k8s
-  tasks:
-  - command: echo "Hello, World!"
-    name: Execute Echo Command
-  vars_files:
-  - vars/main.yml

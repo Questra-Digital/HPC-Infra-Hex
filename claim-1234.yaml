@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: claim-1234
+  namespace: jhub  # Replace with your namespace
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-storage-class  # Specify your StorageClass
+  resources:
+    requests:
+      storage: 1Gi  # Specify the required storage size
+
