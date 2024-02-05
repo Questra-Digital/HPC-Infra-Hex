@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy-public
+  namespace: jhub
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"name":"proxy-public","namespace":"jhub"},"spec":{"ports":[{"name":"http","nodePort":31064,"port":80,"targetPort":8081}],"selector":{"app":"proxy-public"},"type":"NodePort"}}
+spec:
+  ports:
+  - name: http
+    nodePort: 31064
+    port: 80
+    targetPort: 8081
+  selector:
+    app: proxy-public
+  type: NodePort
+
