@@ -48,3 +48,27 @@ sudo mount -t nfs 192.168.56.10:/shared/nfs /mnt
 kubectl get svc -n jhub proxy-public -o jsonpath='{.spec.ports[0].nodePort}'
 
 
+#helm command 
+kubectl get all --all-namespaces -l='app.kubernetes.io/managed-by=Helm'
+
+
+#docker for python server 
+sudo docker build -t hassanrehman1234/repo:latest .
+
+sudo docker push hassanrehman1234/repo:latest
+
+
+pythonserver
+helm install pythonserver1 ./chart
+helm upgrade pythonserver ./chart
+
+
+#link kubectl with local host 
+scp user@remote-server:/etc/kubernetes/admin.conf ~/.kube/config
+
+
+
+kubectl create serviceaccount <service-account-name>
+
+
+
