@@ -1,0 +1,5 @@
+apiVersion: v2
+name: nextjs-chart
+description: Next.js Helm Chart
+version: 0.1.0
+
