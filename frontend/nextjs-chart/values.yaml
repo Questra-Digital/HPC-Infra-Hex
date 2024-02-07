@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: usmanf07/nextjs-cont
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 imagePullSecrets: []

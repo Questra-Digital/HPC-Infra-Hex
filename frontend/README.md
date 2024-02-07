@@ -15,3 +15,8 @@
 `kubectl port-forward service/nextjs-chart 3000:80`
 
 Then the application can be accessed at `http://localhost:3000/`
+
+## Updgrading New Modifications in the build
+
+- `kubectl rollout restart deployment nextjs-chart -n default`
+- For logs and stats: `kubectl describe deployment nextjs-chart -n default`
