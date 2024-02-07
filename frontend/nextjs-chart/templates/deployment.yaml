@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nextjs-chart.fullname" . }}
+  labels:
+    app: {{ include "nextjs-chart.name" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "nextjs-chart.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "nextjs-chart.name" . }}
+    spec:
+      containers:
+        - name: nextjs-container
+          image: usmanf07/nextjs-cont:latest
+          ports:
+            - containerPort: 3000
+
