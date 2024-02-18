@@ -19,6 +19,10 @@ sudo nano /etc/exports
 # paste this "/shared/nfs *(rw,sync,no_subtree_check)"
 exit
 
+sudo mkdir -p /shared/nfs
+sudo chmod 777 /shared/nfs  # Adjust permissions as needed for your use case
+
+
 # install nfs in node 1 - node 2 by 
 vagrant ssh node-1	
 sudo apt update

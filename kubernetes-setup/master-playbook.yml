@@ -155,3 +155,26 @@
     become: false
     local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"
 
+
+  - name: Install NFS kernel server
+    apt:
+      name: nfs-kernel-server
+      state: present
+      update_cache: yes
+
+  - name: Create NFS shared directory
+    file:
+      path: /shared/nfs
+      state: directory
+      mode: '0777'
+        
+  - name: Add NFS export entry to /etc/exports
+    lineinfile:
+      path: /etc/exports
+      line: "/shared/nfs *(rw,sync,no_subtree_check)"
+      insertafter: EOF
+
+  - name: Restart NFS server
+    service:
+      name: nfs-server
+      state: restarted

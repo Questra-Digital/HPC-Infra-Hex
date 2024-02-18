@@ -98,3 +98,24 @@
 
   - name: Join the node to cluster
     command: sh /tmp/join-command.sh
+    
+  - name: Install NFS common package
+    apt:
+      name: nfs-common
+      state: present
+      update_cache: yes
+
+  - name: Create mount directory
+    file:
+      path: /mnt/nfs
+      state: directory
+
+  - name: Mount NFS share
+    mount:
+      src: 192.168.56.10:/shared/nfs
+      path: /mnt/nfs
+      fstype: nfs
+      opts: defaults
+      state: mounted   
+    
+ 

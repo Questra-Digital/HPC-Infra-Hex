@@ -1,0 +1,15 @@
+
+
+In master node
+sudo apt install nfs-kernel-server
+sudo mkdir -p /shared/nfs
+sudo chmod 777 /shared/nfs
+sudo nano /etc/exports
+# paste this "/shared/nfs *(rw,sync,no_subtree_check)"
+sudo systemctl restart nfs-server
+
+
+in nodes 
+sudo apt install nfs-common
+sudo mkdir /mnt/nfs
+sudo mount 192.168.56.10:/shared/nfs /mnt/nfs
