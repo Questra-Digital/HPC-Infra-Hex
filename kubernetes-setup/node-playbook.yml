@@ -15,15 +15,8 @@
       - software-properties-common 
       - gnupg2
       - net-tools
-
-  - name: Install containerd
-    apt: 
-      name: "{{ packages }}"
-      state: present
-      update_cache: yes
-    vars:
-      packages:
       - containerd
+      - gnupg
 
   - name: Remove swapfile from /etc/fstab
     mount:
@@ -38,27 +31,53 @@
     command: swapoff -a
     when: ansible_swaptotal_mb > 0
 
-  - name: Add an apt signing key for Kubernetes
-    apt_key:
-      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-      state: present
+  - name: Ensure the Kubernetes apt keyring directory exists
+    become: yes
+    file:
+      path: /etc/apt/keyrings
+      state: directory
+      mode: '0755'
 
-  - name: Adding apt repository for Kubernetes
-    apt_repository:
-      repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
-      state: present
+  - name: Download and install the Kubernetes signing key
+    ansible.builtin.get_url:
+      url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+      dest: /tmp/kubernetes-release.key
+    register: download_key
+
+  - name: Add the Kubernetes signing key
+    ansible.builtin.shell:
+      cmd: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-release.key
+    when: download_key.changed
+
+  - name: Add the Kubernetes apt repository
+    ansible.builtin.apt_repository:
+      repo: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /'
       filename: kubernetes.list
-
-  - name: Install Kubernetes binaries
-    apt: 
-      name: "{{ packages }}"
       state: present
+
+  - name: Update the apt package index again
+    ansible.builtin.apt:
       update_cache: yes
-    vars:
-      packages:
-        - kubelet=1.23.0-00
-        - kubeadm=1.23.0-00
-        - kubectl=1.23.0-00
+
+  - name: Install kubelet, kubeadm, and kubectl
+    ansible.builtin.apt:
+      name:
+        - kubelet
+        - kubeadm
+        - kubectl
+      state: present
+
+  - name: Mark kubelet, kubeadm, and kubectl to hold
+    ansible.builtin.apt:
+      name: "{{ item }}"
+      state: present
+      update_cache: no
+      dpkg_options: 'force-confold,force-confdef'
+    loop:
+      - kubelet
+      - kubeadm
+      - kubectl
+    notify: Hold kubelet, kubeadm, and kubectl
 
   - name: Configure containerd
     blockinfile:
@@ -90,7 +109,7 @@
 
   - name: Configure kubelet
     lineinfile:
-      path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+      path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
       line: Environment="KUBELET_EXTRA_ARGS=--node-ip={{ output.stdout }}"
 
   - name: Copy the join command to server location
