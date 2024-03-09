@@ -1,1 +1,1 @@
-kubeadm join 192.168.56.10:6443 --token rheiwn.mmr9u4js1cr1cog4 --discovery-token-ca-cert-hash sha256:2e0cd7c7398f4bb107463771f193d236535e1c273d8918d76eff8583f1654f64 
+kubeadm join 192.168.56.10:6443 --token 8igb0v.pmorm4cfyfgmwe3h --discovery-token-ca-cert-hash sha256:6f03b25ee19eed08a7e59d4c6995013430bc549dd5cd2b74364e1a1d5d83db86 

@@ -65,7 +65,7 @@ sudo docker push hassanrehman1234/repo:latest
 pythonserver
 helm install pythonserver1 ./chart
 helm upgrade pythonserver ./chart
-
+scp vagrant@192.168.56.10:~/.kube/config ~/.kube/config
 
 #link kubectl with local host 
 scp user@remote-server:/etc/kubernetes/admin.conf ~/.kube/config
