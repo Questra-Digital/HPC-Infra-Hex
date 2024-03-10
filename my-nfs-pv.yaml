@@ -1,14 +1,13 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: my-nfs-pv1
+  name: my-nfs-pv4
 spec:
   capacity:
-    storage: 1Gi
+    storage: 4Gi
   accessModes:
     - ReadWriteOnce
   nfs:
     path: /shared/nfs  # Path on the NFS server
     server: 192.168.56.10     # IP address of VM1
   storageClassName: nfs-storage-class  # Use the StorageClass name here
-

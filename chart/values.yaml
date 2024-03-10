@@ -1,33 +1,22 @@
-# Default values for chart.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
 replicaCount: 1
 
 image:
   repository: hassanrehman1234/repo1
-  # Overrides the image tag whose default is the chart appVersion
   pullPolicy: Always
-  tag: "latest2"
-  
+  tag: "latest1"
 
 imagePullSecrets: []
+
 nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  # Specifies whether a service account should be created
   create: false
-  # Annotations to add to the service account
-  #annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: "hassan"
+  name: "hpc"
 
 podAnnotations: {}
 
 podSecurityContext: {}
-  # fsGroup: 2000
 
 securityContext: {}
 
@@ -39,16 +28,12 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
-
   hosts:
     - host: chart-example.local
       paths:
         - path: /
           pathType: ImplementationSpecific
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
 resources: {}
 
@@ -57,10 +42,25 @@ autoscaling:
   minReplicas: 1
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
 
 tolerations: []
 
 affinity: {}
+
+configMap:
+  enabled: false
+
+containers:
+  - name: python-server
+    image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+    volumeMounts:
+      - name: storage-class-config
+        mountPath: /config
+        readOnly: true
+volumes:
+  - name: storage-class-config
+    configMap:
+      name: nfs-storage-class-config
+
