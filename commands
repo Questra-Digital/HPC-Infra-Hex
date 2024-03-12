@@ -76,3 +76,24 @@ kubectl create serviceaccount <service-account-name>
 
 
 config.load_incluster_config()
+
+
+https://kodekloud.com/blog/kubectl-exec/
+
+
+ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+
+# Create the ~/.local/bin directory if it doesn't exist
+mkdir -p ~/.local/bin
+
+# Move the kubectl binary to ~/.local/bin
+mv kubectl ~/.local/bin/
+export PATH=$PATH:~/.local/bin
+echo 'export PATH=$PATH:~/.local/bin' >> ~/.bashrc
+
+
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+

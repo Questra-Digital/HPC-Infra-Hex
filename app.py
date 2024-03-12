@@ -6,6 +6,9 @@ from kubernetes.client.rest import ApiException
 import uuid
 import subprocess
 import threading
+import asyncio
+from pyhelm3 import Client
+from kubernetes.stream import stream
 
 app = Flask(__name__)
 
@@ -19,9 +22,32 @@ k8s_client = client.ApiClient()
 
 
 
+
+
+Coreapi = client.CoreV1Api()
+
+
+current_node = None
+
+# Function to update current_node based on pods in default namespace
+def update_current_node():
+    global current_node
+    try:
+        # Get pods in default namespace
+        pods = Coreapi.list_namespaced_pod(namespace="default").items
+        
+        # Find the pod with name starting with "pythonserver"
+        for pod in pods:
+            if pod.metadata.name.startswith("pythonserver"):
+                current_node = pod.metadata.name
+                break
+    except Exception as e:
+        print(f"Error updating current node: {e}")
+
 @app.route('/')
 def hello():
-    return "Hello, World!"
+    update_current_node()
+    return jsonify({"current_node": current_node})
 class ToolModal:
     def __init__(self, tool_name, helm_command, installed):
         self.tool_name = tool_name
@@ -58,7 +84,7 @@ class InstallationModal:
 # Check MongoDB connection status
 def check_mongo_connection():
     try:
-        client.server_info()
+        cliente.server_info()
         print("MongoDB connected successfully!")
     except Exception as e:
         print("Error connecting to MongoDB:", e)
@@ -171,21 +197,21 @@ def create_persistent_volume(namespace, file_name):
         return jsonify({"error": str(e)}), 500
 
 
-def execute_helm_command(helm_command):
-    try:
-        subprocess.run(helm_command, shell=True, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing Helm command: {e}")
-
 @app.route('/create-jupyterhub', methods=['GET'])
 def create_jupyterhub():
     try:
-        # Step 1: Download the my-nfs-pv.yaml file from MongoDB
+       
         pv_file_name = "my-nfs-pv.yaml"
         result = get_file_content(pv_file_name)
 
         if result.status_code != 200:
-            # Return error response if file download failed
+            return result
+
+        valuefile = "values.yaml"
+        result = get_file_content(pv_file_name)
+
+        if result.status_code != 200:
+
             return result
 
         # Step 2: Call create_persistent_volume() for the first time with the same file
@@ -207,16 +233,11 @@ def create_jupyterhub():
         tool_name = "JupyterHub"
         collection = db['tools']
         jupyter_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if jupyter_tool:
+            helm_command = jupyter_tool.get("helm_command")
 
-        if not jupyter_tool:
-            return jsonify({"error": f"{tool_name} information not found in the database"}), 404
-
-        helm_command = jupyter_tool['helm_command']
-
-        # Step 5: Create a background thread to execute the Helm command
-        thread = threading.Thread(target=execute_helm_command, args=(helm_command,))
-        thread.start()
-
+        resultfinal =  execute_command(helm_command)
         return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
@@ -260,31 +281,104 @@ def get_pods(namespace):
         return jsonify({"error": str(e)}), 500
 
 
+
+
 def get_proxy_public_node_port(namespace):
     try:
-        # Command to get the nodePort of the proxy-public service in the specified namespace
-        cmd = f"kubectl get svc -n {namespace} proxy-public -o jsonpath='{{.spec.ports[0].nodePort}}'"
+        # Load Kubernetes configuration from default location
+       
 
-        # Run the kubectl command
-        result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+        # Create a Kubernetes API client
+        v1 = client.CoreV1Api()
 
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
+        # Define the service name
+        service_name = "proxy-public"
+
+        # Get the service details
+        service = v1.read_namespaced_service(service_name, namespace)
+
+        # Get the NodePort
+        node_port = service.spec.ports[0].node_port
+
+        return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
+
+    except Exception as e:
         return {"error": str(e)}
-
 
 @app.route('/get-node-port/<namespace>', methods=['GET'])
 def get_node_port(namespace):
     try:
-        # Call the function to get the nodePort of the proxy-public service
-        node_port = get_proxy_public_node_port(namespace)
+        node_port_result = get_proxy_public_node_port(namespace)
 
-        if "error" in node_port:
-            return jsonify({"error": node_port["error"]}), 500
+        if "error" in node_port_result:
+            return jsonify({"error": node_port_result["error"]}), 500
 
-        return jsonify({"node_port": node_port})
+        return jsonify(node_port_result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+
+
+
+output = ""
+
+def pod_exec(name, namespace, command):
+    global output
+
+    # Load kubeconfig file
+    config.load_incluster_config()
+
+    # Create the API client
+    api_instance = client.CoreV1Api()
+
+    exec_command = ["/bin/sh", "-c", command]
+
+    resp = stream(api_instance.connect_get_namespaced_pod_exec,
+                  name,
+                  namespace,
+                  command=exec_command,
+                  stderr=True, stdin=False,
+                  stdout=True, tty=False,
+                  _preload_content=False)
+
+    while resp.is_open():
+        resp.update(timeout=1)
+        stdout = resp.read_stdout() or ""
+        stderr = resp.read_stderr() or ""
+        output += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
+
+
+
+@app.route('/execute-command')
+def execute_command(command):
+    global output
+
+    # Get the current node's name
+    
+
+    if current_node:
+        # Define the command to run
+        
+
+        # Execute the pod_exec function in a background thread
+        thread = threading.Thread(target=pod_exec, args=(current_node, "default", command))
+        thread.start()
+
+        return jsonify({"message": "Command execution started."})
+    else:
+        return jsonify({"error": "Current node not found."})
+
+@app.route('/get-status')
+def get_status():
+    global output
+    return jsonify({"status": output})
+
+
+
+
+
 
 
 if __name__ == "__main__":

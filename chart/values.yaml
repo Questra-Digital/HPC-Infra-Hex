@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: hassanrehman1234/repo1
   pullPolicy: Always
-  tag: "latest1"
+  tag: "latest4"
 
 imagePullSecrets: []
 
@@ -51,7 +51,7 @@ affinity: {}
 
 configMap:
   enabled: false
-
+  
 containers:
   - name: python-server
     image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -59,6 +59,18 @@ containers:
       - name: storage-class-config
         mountPath: /config
         readOnly: true
+    lifecycle:
+      postStart:
+        exec:
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              set -x;
+              apt-get update;
+              apt-get install -y curl;
+
+
 volumes:
   - name: storage-class-config
     configMap:
