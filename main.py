@@ -337,6 +337,7 @@ output = ""
 
 def pod_exec(name, namespace, command):
     global output
+    output = []
 
     # Load kubeconfig file
     config.load_kube_config()
@@ -365,14 +366,11 @@ def pod_exec(name, namespace, command):
 @app.route('/execute-command')
 def execute_command(command):
     global output
-
     # Get the current node's name
     
-
     if current_node:
         # Define the command to run
         
-
         # Execute the pod_exec function in a background thread
         thread = threading.Thread(target=pod_exec, args=(current_node, "default", command))
         thread.start()
