@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react';
-import Navbar from '../Components/navbar';
+import swal from 'sweetalert2';
 import axios from 'axios';
 import { useDrag, DndProvider, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -81,7 +81,7 @@ const DragAndDropPage = () => {
   const fetchDataFromAPI = async () => {
     try {
       const response = await axios.get('http://127.0.0.1:5000/tools'); 
-      const filteredTools = response.data.filter(tool => !tool.installed);
+      const filteredTools = response.data.filter(tool => tool.installed == "false");
       const toolNames = filteredTools.map(tool => tool.tool_name);
   
       setTools(toolNames);
@@ -98,9 +98,19 @@ const DragAndDropPage = () => {
   
 
   const handleDrop = async (toolName) => {
-    console.log("d", tools);
-    console.log("t",toolName);
+    console.log(toolName)
+    if(toolName == "JupyterHub"){
+      console.log(1)
+      try {
+        const response = await axios.get('http://127.0.0.1:5000/create-jupyterhub'); 
+        swal.fire({text:response.data.message});
+        // console.log(response.data.message)
+    
+      } catch (error) {
+        swal.fire({text:error});
+      }
 
+    }
     if (droppedTools.includes(toolName)) {
       // Tool already dropped
       return;
