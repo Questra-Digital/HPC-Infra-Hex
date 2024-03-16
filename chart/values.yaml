@@ -1,9 +1,9 @@
 replicaCount: 1
 
 image:
-  repository: hassanrehman1234/repo1
+  repository: fatimasiddiqui1048/repo
   pullPolicy: Always
-  tag: "latest4"
+  tag: "latest1"
 
 imagePullSecrets: []
 

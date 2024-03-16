@@ -8,21 +8,18 @@ import subprocess
 import threading
 import asyncio
 from pyhelm3 import Client
+from flask_cors import CORS 
 from kubernetes.stream import stream
 
 app = Flask(__name__)
-
-# MongoDB connection
-cliente = MongoClient('mongodb+srv://orthoimplantsgu:pakistan@cluster0.eegqz25.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
+CORS(app)
+# # # MongoDB connection
+cliente = MongoClient('mongodb://orthoimplantsgu:pakistan@ac-cpo8knv-shard-00-00.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-01.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-02.eegqz25.mongodb.net:27017/?ssl=true&replicaSet=atlas-4i34th-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0')
 db = cliente['kubernetes_db']
 
 # Kubernetes API client
 config.load_kube_config()
 k8s_client = client.ApiClient()
-
-
-
-
 
 Coreapi = client.CoreV1Api()
 
@@ -123,6 +120,20 @@ def get_files():
         files = list(collection.find({}, {"_id": 0}))
 
         return jsonify(files)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+# Endpoint to retrieve all tools from the MongoDB collection
+@app.route('/tools', methods=['GET'])
+def get_tools():
+    try:
+        # Accessing the 'files' collection
+        collection = db['tools']
+
+        # Fetch all documents from the collection
+        tools = list(collection.find({}, {"_id": 0}))
+
+        return jsonify(tools)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -374,13 +385,6 @@ def execute_command(command):
 def get_status():
     global output
     return jsonify({"status": output})
-
-
-
-
-
-
-
 
 
 
