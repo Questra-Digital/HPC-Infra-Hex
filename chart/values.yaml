@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: fatimasiddiqui1048/repo
   pullPolicy: Always
-  tag: "latest1"
+  tag: "latest"
 
 imagePullSecrets: []
 

@@ -359,7 +359,8 @@ def pod_exec(name, namespace, command):
         resp.update(timeout=1)
         stdout = resp.read_stdout() or ""
         stderr = resp.read_stderr() or ""
-        output += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
+        output += stdout + stderr
+        print(output)
 
 
 
