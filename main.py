@@ -12,6 +12,8 @@ from kubernetes.stream import stream
 
 app = Flask(__name__)
 
+
+
 # MongoDB connection
 cliente = MongoClient('mongodb+srv://orthoimplantsgu:pakistan@cluster0.eegqz25.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
 db = cliente['kubernetes_db']
@@ -19,14 +21,7 @@ db = cliente['kubernetes_db']
 # Kubernetes API client
 config.load_kube_config()
 k8s_client = client.ApiClient()
-
-
-
-
-
 Coreapi = client.CoreV1Api()
-
-
 current_node = None
 
 # Function to update current_node based on pods in default namespace
@@ -43,6 +38,13 @@ def update_current_node():
                 break
     except Exception as e:
         print(f"Error updating current node: {e}")
+
+@app.errorhandler(404)
+def not_found_error(error):
+    if request.path == '/favicon.ico':
+        return app.send_static_file('favicon.ico')
+    else:
+        return render_template('404.html'), 404
 
 @app.route('/')
 def hello():
@@ -285,21 +287,11 @@ def get_pods(namespace):
 
 def get_proxy_public_node_port(namespace):
     try:
-        # Load Kubernetes configuration from default location
-       
-
-        # Create a Kubernetes API client
+        
         v1 = client.CoreV1Api()
-
-        # Define the service name
         service_name = "proxy-public"
-
-        # Get the service details
         service = v1.read_namespaced_service(service_name, namespace)
-
-        # Get the NodePort
         node_port = service.spec.ports[0].node_port
-
         return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
 
     except Exception as e:
@@ -374,13 +366,6 @@ def execute_command(command):
 def get_status():
     global output
     return jsonify({"status": output})
-
-
-
-
-
-
-
 
 
 
