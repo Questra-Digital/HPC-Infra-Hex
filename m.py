@@ -24,6 +24,7 @@ config.load_kube_config()
 k8s_client = client.ApiClient()
 Coreapi = client.CoreV1Api()
 current_node = None
+output = {}
 
 
 @app.route('/tools', methods=['GET'])
@@ -247,7 +248,11 @@ def create_jupyterhub():
         if jupyter_tool:
             helm_command = jupyter_tool.get("helm_command")
 
-        resultfinal =  execute_command(helm_command)
+        resultfinal =  execute_command(helm_command,tool_name)
+        collection.update_one(
+            {"tool_name": tool_name},
+            {"$set": {"installed": True}}
+        )
         return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
@@ -317,14 +322,7 @@ def get_node_port(namespace):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-
-
-
-
-output = ""
-
-def pod_exec(name, namespace, command):
+def pod_exec(name, namespace, command,tool_name):
     global output
 
     # Load kubeconfig file
@@ -342,17 +340,18 @@ def pod_exec(name, namespace, command):
                   stderr=True, stdin=False,
                   stdout=True, tty=False,
                   _preload_content=False)
-
+    output.setdefault(tool_name, "")
+    output[tool_name] = ""
     while resp.is_open():
         resp.update(timeout=1)
         stdout = resp.read_stdout() or ""
         stderr = resp.read_stderr() or ""
-        output += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
+        output[tool_name] += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
 
 
 
 @app.route('/execute-command')
-def execute_command(command):
+def execute_command(command,tool_name):
     global output
 
     # Get the current node's name
@@ -363,18 +362,20 @@ def execute_command(command):
         
 
         # Execute the pod_exec function in a background thread
-        thread = threading.Thread(target=pod_exec, args=(current_node, "default", command))
+        thread = threading.Thread(target=pod_exec, args=(current_node, "default", command,tool_name))
         thread.start()
 
         return jsonify({"message": "Command execution started."})
     else:
         return jsonify({"error": "Current node not found."})
 
-@app.route('/get-status')
-def get_status():
+@app.route('/get-status/<tool_name>', methods=['GET'])
+def get_status(tool_name):
     global output
-    return jsonify({"status": output})
-
+    if tool_name in output:
+        return jsonify({"status": output[tool_name]})
+    else:
+        return jsonify({"error": f"Status for {tool_name} not found."})
 
 
 @app.route('/delete-all-pvs', methods=['DELETE'])
@@ -401,6 +402,14 @@ def delete_all_pvs():
         return jsonify({"error": f"Kubernetes API error: {e.reason}"}), 500
     except Exception as e:
         return jsonify({"error": f"An error occurred: {e}"}), 500
+
+@app.route('/installtool/<tool_name>', methods=['GET'])
+def install_tool(tool_name):
+    if tool_name == "JupyterHub":
+        return create_jupyterhub()
+    # Add more conditions for other tools as needed
+    else:
+        return jsonify({"error": f"Installation for {tool_name} not implemented."}), 404
 
 
 if __name__ == "__main__":
