@@ -99,18 +99,18 @@ const DragAndDropPage = () => {
 
   const handleDrop = async (toolName) => {
     console.log(toolName)
-    if(toolName == "JupyterHub"){
-      console.log(1)
-      try {
-        const response = await axios.get('http://127.0.0.1:5000/create-jupyterhub'); 
-        swal.fire({text:response.data.message});
-        // console.log(response.data.message)
+    // if(toolName == "JupyterHub"){
+    //   console.log(1)
+    //   try {
+    //     const response = await axios.get('http://127.0.0.1:5000/create-jupyterhub'); 
+    //     swal.fire({text:response.data.message});
+    //     // console.log(response.data.message)
     
-      } catch (error) {
-        swal.fire({text:error});
-      }
+    //   } catch (error) {
+    //     swal.fire({text:error});
+    //   }
 
-    }
+    // }
     if (droppedTools.includes(toolName)) {
       // Tool already dropped
       return;
@@ -118,6 +118,30 @@ const DragAndDropPage = () => {
     // Update dropped tools
     setTools((prevTools) => prevTools.filter((tool) => tool !== toolName));
     setDroppedTools((prevTools) => [...prevTools, toolName]);
+  };
+
+  const deployTools = async () => {
+    console.log(droppedTools);
+    // Assuming this code is inside an asynchronous function
+try {
+  // Use Promise.all() to asynchronously execute multiple promises
+  await Promise.all(droppedTools.map(async (tool, index) => {
+    try {
+      const response = await axios.get(`http://127.0.0.1:5000/installtool/${tool}`);
+      swal.fire({ text: response.data.message });
+      // console.log(response.data.message)
+    } catch (error) {
+      swal.fire({ text: error.message }); // Use error.message to get the error message string
+    }
+  }));
+} catch (error) {
+  swal.fire({ text: error.message }); // Handle any errors that might occur in the outer try-catch block
+}
+
+     
+
+    
+   
   };
 
   return (
@@ -139,6 +163,7 @@ const DragAndDropPage = () => {
               className="w-auto hover:bg-[#33469e] w-full font-bold bg-[#132577] rounded mt-4 text-white p-4 px-6"
               onMouseEnter={(e) => { e.target.style.cursor = 'pointer'; }} // Show hand cursor on hover
               onMouseLeave={(e) => { e.target.style.cursor = 'auto'; }}
+              onClick={deployTools}
             >
               Deploy Tool
             </button>
