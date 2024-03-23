@@ -97,3 +97,11 @@ curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scrip
 chmod 700 get_helm.sh
 ./get_helm.sh
 
+
+
+#################
+sudo docker build -t usmanf07/repo-python:latest .
+sudo docker push usmanf07/repo-python:latest
+helm install pythonserver ./chart
+
+

@@ -1,9 +1,9 @@
 replicaCount: 1
 
 image:
-  repository: hassanrehman1234/repo1
+  repository: usmanf07/repo-python
   pullPolicy: Always
-  tag: "latest4"
+  tag: "latest"
 
 imagePullSecrets: []
 

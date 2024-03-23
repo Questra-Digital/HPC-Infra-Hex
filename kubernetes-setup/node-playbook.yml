@@ -66,6 +66,16 @@
         - kubeadm
         - kubectl
       state: present
+      
+  - ansible.builtin.apt:
+      name: docker.io
+      state: present
+    name: Install Docker
+
+  - ansible.builtin.service:
+      name: docker
+      state: started
+    name: Ensure Docker service is started
 
   - name: Mark kubelet, kubeadm, and kubectl to hold
     ansible.builtin.apt:

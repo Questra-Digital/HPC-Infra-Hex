@@ -1,0 +1,5 @@
+config:
+  BinderHub:
+    hub_url: http://192.168.56.10:31392
+    image_prefix: usmanf07/binderhub-
+    use_registry: true
