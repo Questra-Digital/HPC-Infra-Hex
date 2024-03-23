@@ -21,7 +21,7 @@ const getStatus = () => {
 
       try {
         const response = await axios.get('http://127.0.0.1:5000/get-status'); 
-        // console.log("sttaus" , response.data.status);
+        console.log("sttaus" , response.data.status);
         setStat(response.data.status);
       } catch (error) {
         console.error('Error fetching status:', error);

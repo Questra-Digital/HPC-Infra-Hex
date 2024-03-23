@@ -25,7 +25,7 @@ const MyTools = () => {
 
  
   return (
-    <div className="flex flex-col items-center text-white w-screen">
+    <div className="flex h-screen flex-col items-center text-white w-screen">
       <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" />
       <div className='mt-10 text-[#132577] text-xl font-bold'>
         My Tools
@@ -46,7 +46,7 @@ const MyTools = () => {
           </Link>
         ))}
       </div>
-      <Footer />
+      <Footer className="flex-7" />
     </div>
   );
 };

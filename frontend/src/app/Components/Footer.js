@@ -6,7 +6,7 @@ const Footer = () => {
     const followUs = ["Facebook","Twitter","Instagram", "Linkedin", "Discord"];
 
   return (
-    <div className='bg-[#132577] text-xs gap-[5%] flex items-center justify-center w-full h-[20rem] fixed bottom-0 p-10 my-4'>
+    <div className='bg-[#132577] text-xs gap-[5%] flex items-center justify-center w-full h-[20rem] p-10 my-4'>
         <div className='flex-1 text-start flex h-auto'>
          Digital experience is always embedded in a physical experience.Turpis cursus in hac habitasse platea dictumst quisque sagittis purus. Ligula ullamcorper malesuada proin libero nunc consequat.Turpis cursus in hac habitasse platea dictumst quisque sagittis purus. Ligula ullamcorper malesuada proin libero nunc consequat.
         </div>

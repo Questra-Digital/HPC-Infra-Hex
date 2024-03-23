@@ -116,22 +116,22 @@ const AddCluster = () => {
         <div className='mt-10 flex-1 text-[#132577] text-xl font-bold'>
             Add Resources To Cluster
         </div>
-        <div className='text-xs flex flex-2 w-1/3 gap-[5%] items-center justify-start '>
-          <button type="button" onClick={PowerOnVagrant} className="w-auto w-full font-bold bg-[#132577] rounded mt-4 text-white p-3">
+        <div className='h-full my-[2%] flex flex-2 w-1/2 gap-[5%] items-center justify-start '>
+          <button type="button" onClick={PowerOnVagrant} className="w-auto hover:bg-[#33469e] w-full font-bold bg-[#132577] rounded mt-4 text-white p-4 px-6">
               Power On
           </button>
-          <button type="button" onClick={VagrantStatus} className="w-auto w-full font-bold bg-[#132577] rounded mt-4 text-white p-3">
+          <button type="button" onClick={VagrantStatus} className="w-auto  hover:bg-[#33469e] w-full font-bold bg-[#132577] rounded mt-4 text-white p-4">
               Status
           </button>
         </div>
-        <div className='flex flex-col gap-[0%] px-[5%] py-[2%] w-full text-black'>
-          <div className="text-white text-sm h-full flex flex-col md:flex-row items-start justify-center w-full ">
-              <div className="bg-[#132577] flex gap-[2%] flex-col flex-1  w-2/3 p-[5%] py-[8%] md:py-[3%] my-[10%]  md:my-[3%] mx-[15%] rounded-lg ">
+        <div className='flex flex-col h-full px-[5%] w-full text-black'>
+          <div className="text-white h-full my-[3%] flex flex-col md:flex-row items-start justify-center w-full ">
+              <div className="h-full bg-[#132577] flex gap-[2%] flex-col flex-1  w-2/3 p-[5%] mx-[10%] rounded-lg ">
               
                   <div className='flex flex-col md:flex-row w-auto gap-[5%] '>
                       <div className="flex mb-4 flex-col flex-1 w-full md:w-1/2">
                           <label className="mb-2">Select Vagrant Box:</label>
-                          <select className="p-2 text-black rounded">
+                          <select className="p-4 text-black rounded">
                           <option value="ubuntu/jammy64">ubuntu/jammy64</option>
                           <option value="bento/ubuntu-20.04">bento/ubuntu-20.04</option>
                           </select>
@@ -139,19 +139,19 @@ const AddCluster = () => {
 
                       <div className="flex mb-4 flex-col flex-2 w-full md:w-1/2">
                           <label className="mb-2">VM Box Version:</label>
-                          <input readOnly type="text" value={boxVersion} onChange={(e) => setBoxVersion(e.target.value)} className="rounded text-black p-2" />
+                          <input readOnly type="text" value={boxVersion} onChange={(e) => setBoxVersion(e.target.value)} className="rounded text-black p-4" />
                       </div>
                   </div>
 
                   <div className='flex flex-col md:flex-row w-auto gap-[5%] '>
                       <div className="flex mb-2 flex-col w-full md:w-1/2">
                           <label className="mb-2">Memory:</label>
-                          <input type="text" value={memory} onChange={(e) => setMemory(e.target.value)} className="rounded text-black p-2" />
+                          <input type="text" value={memory} onChange={(e) => setMemory(e.target.value)} className="rounded text-black p-4" />
                       </div>
 
                       <div className="flex mb-4 flex-col w-auto md:w-1/2">
                           <label className="mb-2">CPUs:</label>
-                          <input type="text" value={cpus} onChange={(e) => setCpus(e.target.value)} className="rounded text-black p-2" />
+                          <input type="text" value={cpus} onChange={(e) => setCpus(e.target.value)} className="rounded text-black p-4" />
                       </div>
                   </div>
 
@@ -163,7 +163,7 @@ const AddCluster = () => {
                                   type="text"
                                   value={box.name}
                                   onChange={(e) => handleBoxNameChange(index, e.target.value)}
-                                  className="rounded p-2 text-black"
+                                  className="rounded p-4 text-black"
                               />
                           </div>
 
@@ -173,26 +173,26 @@ const AddCluster = () => {
                                   type="text"
                                   value={box.ip}
                                   onChange={(e) => handleBoxIpChange(index, e.target.value)}
-                                  className="rounded text-black p-2"
+                                  className="rounded text-black p-4"
                               />
                           </div>
                       
                           <button
                               type="button"
                               onClick={() => handleRemoveBox(index)}
-                              className="flex mt-2 rounded text-white p-2 flex items-center justify-center"
+                              className="flex mt-4 rounded text-white p-4 flex items-center justify-center"
                           >
                               <FaTrash />
                           </button>
                       </div>
                   ))}
                   
-                  <div className='flex flex-col md:flex-row w-auto gap-[5%] '>
-                      <button type="button" onClick={handleAddBox} className="w-auto md:w-1/2  rounded font-bold mt-4 bg-[#15E89C] text-white p-2">
+                  <div className='flex flex-col md:flex-row w-auto gap-[5%] mt-8'>
+                      <button type="button" onClick={handleAddBox} className="w-auto md:w-1/2  rounded font-bold bg-[#15E89C] text-white p-4">
                           Add Box
                       </button>
 
-                      <button type="button" onClick={handleSave} className="w-auto md:w-1/2 font-bold rounded mt-4 bg-white text-[#132577] p-2">
+                      <button type="button" onClick={handleSave} className="w-auto md:w-1/2 font-bold rounded bg-white text-[#132577] p-4">
                           Save
                       </button>
                   </div>
@@ -200,7 +200,7 @@ const AddCluster = () => {
               </div>
           </div>
         </div>
-        <Footer className="flex-7" />
+        <Footer />
     </div>
   );
 };

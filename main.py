@@ -8,24 +8,36 @@ import subprocess
 import threading
 import asyncio
 from pyhelm3 import Client
-from flask_cors import CORS 
 from kubernetes.stream import stream
+from flask_cors import CORS 
 
 app = Flask(__name__)
+
+
 CORS(app)
-# # # MongoDB connection
+# MongoDB connection
 cliente = MongoClient('mongodb://orthoimplantsgu:pakistan@ac-cpo8knv-shard-00-00.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-01.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-02.eegqz25.mongodb.net:27017/?ssl=true&replicaSet=atlas-4i34th-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0')
 db = cliente['kubernetes_db']
 
 # Kubernetes API client
 config.load_kube_config()
 k8s_client = client.ApiClient()
-
 Coreapi = client.CoreV1Api()
-
-
 current_node = None
 
+
+@app.route('/tools', methods=['GET'])
+def get_tools():
+    try:
+        # Accessing the 'files' collection
+        collection = db['tools']
+
+        # Fetch all documents from the collection
+        tools = list(collection.find({}, {"_id": 0}))
+
+        return jsonify(tools)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # Function to update current_node based on pods in default namespace
 def update_current_node():
     global current_node
@@ -40,6 +52,7 @@ def update_current_node():
                 break
     except Exception as e:
         print(f"Error updating current node: {e}")
+
 
 @app.route('/')
 def hello():
@@ -120,20 +133,6 @@ def get_files():
         files = list(collection.find({}, {"_id": 0}))
 
         return jsonify(files)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-# Endpoint to retrieve all tools from the MongoDB collection
-@app.route('/tools', methods=['GET'])
-def get_tools():
-    try:
-        # Accessing the 'files' collection
-        collection = db['tools']
-
-        # Fetch all documents from the collection
-        tools = list(collection.find({}, {"_id": 0}))
-
-        return jsonify(tools)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -296,21 +295,11 @@ def get_pods(namespace):
 
 def get_proxy_public_node_port(namespace):
     try:
-        # Load Kubernetes configuration from default location
-       
-
-        # Create a Kubernetes API client
+        
         v1 = client.CoreV1Api()
-
-        # Define the service name
         service_name = "proxy-public"
-
-        # Get the service details
         service = v1.read_namespaced_service(service_name, namespace)
-
-        # Get the NodePort
         node_port = service.spec.ports[0].node_port
-
         return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
 
     except Exception as e:
@@ -337,7 +326,6 @@ output = ""
 
 def pod_exec(name, namespace, command):
     global output
-    output = []
 
     # Load kubeconfig file
     config.load_kube_config()
@@ -359,19 +347,21 @@ def pod_exec(name, namespace, command):
         resp.update(timeout=1)
         stdout = resp.read_stdout() or ""
         stderr = resp.read_stderr() or ""
-        output += stdout + stderr
-        print(output)
+        output += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
 
 
 
 @app.route('/execute-command')
 def execute_command(command):
     global output
+
     # Get the current node's name
     
+    update_current_node()
     if current_node:
         # Define the command to run
         
+
         # Execute the pod_exec function in a background thread
         thread = threading.Thread(target=pod_exec, args=(current_node, "default", command))
         thread.start()
@@ -387,6 +377,31 @@ def get_status():
 
 
 
+@app.route('/delete-all-pvs', methods=['DELETE'])
+def delete_all_pvs():
+    try:
+        k8s= client.CoreV1Api()
+        # Get all PersistentVolumes
+        pvs = k8s.list_persistent_volume().items
+
+        deleted_pvs = []
+        for pv in pvs:
+            # Check if PV status is "Available" or "Released"
+            if pv.status.phase in ["Available", "Released"]:
+                # Delete the PV
+                try:
+                    k8s.delete_persistent_volume(pv.metadata.name, body=client.V1DeleteOptions())
+                    deleted_pvs.append(pv.metadata.name)
+                except ApiException as e:
+                    return jsonify({"error": f"Error deleting PV '{pv.metadata.name}': {e}"}), 500
+
+        return jsonify({"message": f"Deleted PVs: {deleted_pvs}"}), 200
+
+    except ApiException as e:
+        return jsonify({"error": f"Kubernetes API error: {e.reason}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {e}"}), 500
+
+
 if __name__ == "__main__":
     app.run()
-

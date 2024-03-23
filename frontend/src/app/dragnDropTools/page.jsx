@@ -123,7 +123,7 @@ const DragAndDropPage = () => {
   return (
     <div className="h-screen flex flex-col items-center text-white w-screen">
       <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure"  />
-      <div className='flex  h-full flex-col gap-[5%] px-[5%] py-[2%] w-full text-black'>
+      <div className='flex h-full flex-col gap-[5%] px-[5%] py-[2%] w-full text-black'>
         <div className='flex-1 flex items-center justify-start '>
           <div className='flex flex-1 items-center justify-start'>
             <img src="/ClsuterIcon.svg" className="flex w-28 md:block" />
@@ -148,7 +148,7 @@ const DragAndDropPage = () => {
         </div>
         <div>{installationStatus}</div>
         <DndProvider className="flex-2 h-full flex w-screen" backend={HTML5Backend}>
-          <div className='flex h-full gap-[5%]'>
+          <div className='flex h-[600px] gap-[5%]'>
             <div className='border h-full flex-1 w-[30%] border-gray-400 rounded bg-gray-100 py-[2%] px-[2%] '>
               <h1 className="text-lg md:text-xl font-semibold">Tool List</h1>
               <ul className='mt-4 text-sm'>
@@ -165,7 +165,7 @@ const DragAndDropPage = () => {
           
         </DndProvider>
       </div>
-      {/* <Footer /> */}
+      <Footer />
 
 
     </div>

@@ -36,7 +36,7 @@ const AddCluster = () => {
         Run Command On VmWares
       </div>
 
-      <div className=" text-black text-sm flex mb-4 flex-col flex-1 w-full px-[15%] pt-[2%] pb-[0%]">
+      <div className=" text-black  flex mb-4 flex-col flex-1 w-full px-[15%] pt-[2%] pb-[0%]">
           <label className="mb-2">Select VmWare:</label>
           <select onChange={(e) => {setVmWare(e.target.value)}} className="bg-gray-300 p-[2%] text-black rounded">
             <option value="master">master</option>
@@ -50,7 +50,7 @@ const AddCluster = () => {
           value={command}
           onChange={(e) => handleCommand(e.target.value)}
           onKeyDown={handleEnterPress}
-          className="w-full bg-gray-300 rounded text-black p-4"
+          className="w-full bg-gray-300 rounded text-black p-8"
         />
       </div>
 
@@ -60,7 +60,7 @@ const AddCluster = () => {
           placeholder="Command Response Here"
           value={commandResponse}
           onChange={(e) => handleCommandResponse(e.target.value)}
-          className="w-full h-60 bg-gray-200 rounded text-black p-4"
+          className="w-full h-[400px] bg-gray-200 rounded text-black p-8"
         />
       </div>
 
