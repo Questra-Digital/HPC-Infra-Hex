@@ -251,7 +251,7 @@ def create_jupyterhub():
         resultfinal =  execute_command(helm_command,tool_name)
         collection.update_one(
             {"tool_name": tool_name},
-            {"$set": {"installed": True}}
+            {"$set": {"installed": "true"}}
         )
         return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
