@@ -258,8 +258,6 @@ def create_jupyterhub():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {e}"}), 500
 
-        
-
 def get_pods_in_namespace(namespace):
     try:
         # Create Kubernetes API client
