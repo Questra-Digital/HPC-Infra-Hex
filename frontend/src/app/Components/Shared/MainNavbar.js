@@ -8,6 +8,7 @@ const MainNavbar = ({ title }) => {
     { title: 'Drag & Drop Tools', link: '/dragnDropTools' },
     { title: 'Add Cluster', link: '/addCluster' },
     { title: 'Run Command', link: '/runCommand' },
+    { title: 'MyTools', link: '/myTools'},
     { title: 'Versions', link: '/versionControl' },
     { title: 'Register (Root)', link: '/registerAsRootUser' },
     { title: 'Login', link: '/login' },

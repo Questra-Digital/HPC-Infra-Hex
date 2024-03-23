@@ -25,12 +25,12 @@ const ClusterConsumptionDetails = () => {
           <div className='flex-1 text-[#132577] text-xl font-bold'>
             Cluster Name: Resources Consumption
           </div>
-          <div className='flex-2 text-sm px-[15%]'>
+          <div className='flex-2 text-sm px-[30%]'>
             The chart shows the no. of resources being assigned to each project, and colored areas show how much consumption has been made by each project.
           </div>
 
           {/* Bar Chart */}
-          <div className="mt-[5%]" style={{ width: '70%', height: 450 }}>
+          <div className="mt-[6%]" style={{ width: '55%', height: 600}}>
             <ResponsiveContainer>
               <BarChart
                 data={chartData}

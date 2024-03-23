@@ -9,11 +9,12 @@ import threading
 import asyncio
 from pyhelm3 import Client
 from kubernetes.stream import stream
+from flask_cors import CORS 
 
 app = Flask(__name__)
 
 
-
+CORS(app)
 # MongoDB connection
 cliente = MongoClient('mongodb+srv://orthoimplantsgu:pakistan@cluster0.eegqz25.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
 db = cliente['kubernetes_db']
@@ -23,7 +24,21 @@ config.load_kube_config()
 k8s_client = client.ApiClient()
 Coreapi = client.CoreV1Api()
 current_node = None
+output = {}
 
+
+@app.route('/tools', methods=['GET'])
+def get_tools():
+    try:
+        # Accessing the 'files' collection
+        collection = db['tools']
+
+        # Fetch all documents from the collection
+        tools = list(collection.find({}, {"_id": 0}))
+
+        return jsonify(tools)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # Function to update current_node based on pods in default namespace
 def update_current_node():
     global current_node
@@ -39,12 +54,6 @@ def update_current_node():
     except Exception as e:
         print(f"Error updating current node: {e}")
 
-@app.errorhandler(404)
-def not_found_error(error):
-    if request.path == '/favicon.ico':
-        return app.send_static_file('favicon.ico')
-    else:
-        return render_template('404.html'), 404
 
 @app.route('/')
 def hello():
@@ -239,13 +248,15 @@ def create_jupyterhub():
         if jupyter_tool:
             helm_command = jupyter_tool.get("helm_command")
 
-        resultfinal =  execute_command(helm_command)
+        resultfinal =  execute_command(helm_command,tool_name)
+        collection.update_one(
+            {"tool_name": tool_name},
+            {"$set": {"installed": "true"}}
+        )
         return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
         return jsonify({"error": f"An error occurred: {e}"}), 500
-
-        
 
 def get_pods_in_namespace(namespace):
     try:
@@ -309,14 +320,7 @@ def get_node_port(namespace):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-
-
-
-
-output = ""
-
-def pod_exec(name, namespace, command):
+def pod_exec(name, namespace, command,tool_name):
     global output
 
     # Load kubeconfig file
@@ -334,41 +338,79 @@ def pod_exec(name, namespace, command):
                   stderr=True, stdin=False,
                   stdout=True, tty=False,
                   _preload_content=False)
-
+    output.setdefault(tool_name, "")
+    output[tool_name] = ""
     while resp.is_open():
         resp.update(timeout=1)
         stdout = resp.read_stdout() or ""
         stderr = resp.read_stderr() or ""
-        output += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
+        output[tool_name] += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
 
 
 
 @app.route('/execute-command')
-def execute_command(command):
+def execute_command(command,tool_name):
     global output
 
     # Get the current node's name
     
-
+    update_current_node()
     if current_node:
         # Define the command to run
         
 
         # Execute the pod_exec function in a background thread
-        thread = threading.Thread(target=pod_exec, args=(current_node, "default", command))
+        thread = threading.Thread(target=pod_exec, args=(current_node, "default", command,tool_name))
         thread.start()
 
         return jsonify({"message": "Command execution started."})
     else:
         return jsonify({"error": "Current node not found."})
 
-@app.route('/get-status')
-def get_status():
+@app.route('/get-status/<tool_name>', methods=['GET'])
+def get_status(tool_name):
     global output
-    return jsonify({"status": output})
+    if tool_name in output:
+        return jsonify({"status": output[tool_name]})
+    else:
+        return jsonify({"error": f"Status for {tool_name} not found."})
 
+
+@app.route('/delete-all-pvs', methods=['DELETE'])
+def delete_all_pvs():
+    try:
+        k8s= client.CoreV1Api()
+        # Get all PersistentVolumes
+        pvs = k8s.list_persistent_volume().items
+
+        deleted_pvs = []
+        for pv in pvs:
+            # Check if PV status is "Available" or "Released"
+            if pv.status.phase in ["Available", "Released"]:
+                # Delete the PV
+                try:
+                    k8s.delete_persistent_volume(pv.metadata.name, body=client.V1DeleteOptions())
+                    deleted_pvs.append(pv.metadata.name)
+                except ApiException as e:
+                    return jsonify({"error": f"Error deleting PV '{pv.metadata.name}': {e}"}), 500
+
+        return jsonify({"message": f"Deleted PVs: {deleted_pvs}"}), 200
+
+    except ApiException as e:
+        return jsonify({"error": f"Kubernetes API error: {e.reason}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {e}"}), 500
+
+@app.route('/installtool/<tool_name>', methods=['GET'])
+def install_tool(tool_name):
+    if tool_name == "JupyterHub":
+        return create_jupyterhub()
+    # Add more conditions for other tools as needed
+    else:
+        return jsonify({"error": f"Installation for {tool_name} not implemented."}), 404
 
 
 if __name__ == "__main__":
     app.run()
+
 
