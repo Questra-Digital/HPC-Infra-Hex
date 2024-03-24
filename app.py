@@ -219,7 +219,7 @@ def create_secret_yaml(username, password):
 @app.route('/bind-binderhub', methods=['GET'])
 def bind_binderhub():
   try:
-    jhub_tool = get_proxy_public_node_port("jhub")
+    jhub_tool = get_proxy_public_node_port("bhub")
     ip_address = "http://192.168.56.10:"
     port = jhub_tool["node_port"]
     config_yaml_content = create_config_yaml("usmanf07/binderhub-", ip_address + str(port))
@@ -235,8 +235,11 @@ def bind_binderhub():
     if binder_tool:
         helm_command = binder_tool.get("helm_command")
         helm_command = helm_command.replace("install", "upgrade", 1)
-        resultfinal =  execute_command(helm_command)
-        return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+        #print(helm_command)
+        resultfinal =  execute_command(helm_command, tool_name)
+        binderport = get_service_port("bhub", "binder")
+
+        return jsonify({"message": f"Started binding of Binderhub. Visit URL: 192.168.56.10:" + str(binderport["node_port"])})
     
   except Exception as e:
       return jsonify({"error": f"An error occurred: {e}"}), 500
@@ -365,7 +368,28 @@ def get_pods(namespace):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/get-service-port/<namespace>/<service>', methods=['GET'])
+def get_service_port(namespace, service):
+    try:
+        # Load Kubernetes configuration from default location
+       
 
+        # Create a Kubernetes API client
+        v1 = client.CoreV1Api()
+
+        # Define the service name
+        service_name = service
+
+        # Get the service details
+        service = v1.read_namespaced_service(service_name, namespace)
+
+        # Get the NodePort
+        node_port = service.spec.ports[0].node_port
+
+        return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.route('/get-proxy/<namespace>', methods=['GET'])
 def get_proxy_public_node_port(namespace):
