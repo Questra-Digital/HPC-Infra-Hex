@@ -40,8 +40,14 @@ const MyTools = () => {
                className="border hover:bg-[#33469e] rounded-2xl bg-[#132577] text-white p-8 cursor-pointer"
                onMouseEnter={(e) => { e.target.style.cursor = 'pointer'; }} // Show hand cursor on hover
                onMouseLeave={(e) => { e.target.style.cursor = 'auto'; }}> {/* Reset cursor when not hovered */}
-            <h2 className="text-xl font-bold">{tool.tool_name}</h2>
-            <p className="mt-2 text-sm mr-4 font-normal">{tool.installed ? "Installed" : "Not Installed"}</p>
+                <div className='flex items-center gap-6'>
+                  <img src={tool.logo} alt={tool.tool_name} className="w-14 h-14 inline-block rounded-full" /> 
+                  <div>
+                      <h2 className="text-xl font-bold">{tool.tool_name}</h2>
+                      <p className="mt-2 text-sm mr-4 font-normal">{tool.installed ? "Installed" : "Not Installed"}</p>
+                  </div>
+               </div>
+            
           </div>
           </Link>
         ))}

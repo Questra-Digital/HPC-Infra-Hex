@@ -10,4 +10,4 @@ spec:
   nfs:
     path: /shared/nfs  # Path on the NFS server
     server: 192.168.56.10     # IP address of VM1
-  storageClassName: nfs-storage-class  # Use the StorageClass name here
+    storageClassName: nfs-storage-class  # Use the StorageClass name here

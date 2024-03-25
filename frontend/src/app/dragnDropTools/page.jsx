@@ -11,28 +11,30 @@ const ItemTypes = {
   TOOL: 'tool',
 };
 
-const Tool = ({ name, onDrop }) => {
+const Tool = ({ tool, onDrop }) => {
   const [, drag] = useDrag({
     type: ItemTypes.TOOL,
-    item: { name },
+    item: { tool },
   });
 
   return (
-    <div ref={drag} style={{ cursor: 'move', marginBottom: '10px' }}>
-      {name}
+    <div  className="flex items-center" ref={drag} style={{ cursor: 'move', marginBottom: '10px' }}>
+      <img src={tool.logo} alt={tool.tool_name} className="w-10 h-10 mr-2 rounded-full" />
+      {tool.tool_name}
     </div>
   );
 };
 
-const DroppedTool = ({ name, onDrop }) => {
+const DroppedTool = ({ tool, onDrop }) => {
   const [, drag] = useDrag({
     type: ItemTypes.TOOL,
-    item: { name },
+    item: { tool },
   });
 
   return (
-    <div ref={drag} style={{ cursor: 'move', marginBottom: '10px' }}>
-      {name}
+    <div className="flex items-center" ref={drag} style={{ cursor: 'move', marginBottom: '10px' }}>
+      <img src={tool.logo} alt={tool.tool_name} className="w-10 h-10 mr-2 rounded-full" />
+      {tool.tool_name}
     </div>
   );
 };
@@ -40,7 +42,7 @@ const DroppedTool = ({ name, onDrop }) => {
 const ClusterSpace = ({ droppedTools, onDrop }) => {
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: ItemTypes.TOOL,
-    drop: (item) => onDrop(item.name),
+    drop: (item) => onDrop(item.tool),
     collect: (monitor) => ({
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
@@ -60,7 +62,7 @@ const ClusterSpace = ({ droppedTools, onDrop }) => {
       }}
     >
       {droppedTools.map((tool, index) => (
-        <DroppedTool key={index} name={tool} onDrop={onDrop} />
+        <DroppedTool key={index} tool={tool} onDrop={onDrop} />
       ))}
     </div>
   );
@@ -71,77 +73,42 @@ const DragAndDropPage = () => {
   const [droppedTools, setDroppedTools] = useState([]);
   const [installationStatus, setInstallationStatus] = useState('');
   
-  
-  // Function to handle script file upload
-  const handleScriptFileUpload = (e) => {
-    const selectedFile = e.target.files[0]; // Get the selected file
-    setScriptFile(selectedFile); // Update the state with the selected file
-  };
+  useEffect(() => {
+    fetchDataFromAPI();
+  }, []);
 
   const fetchDataFromAPI = async () => {
     try {
       const response = await axios.get('http://127.0.0.1:5000/tools'); 
-      const filteredTools = response.data.filter(tool => tool.installed == "false");
-      const toolNames = filteredTools.map(tool => tool.tool_name);
-  
-      setTools(toolNames);
-  
+      const filteredTools = response.data.filter(tool => tool.installed === "false"); // assuming 'installed' is a boolean
+      setTools(filteredTools);
     } catch (error) {
       console.error('Error fetching data: ', error);
     }
   };
   
-  // Call the fetchDataFromAPI function whenever you need to fetch the data
-  useEffect(() => {
-    fetchDataFromAPI();
-  }, []);
-  
-
-  const handleDrop = async (toolName) => {
-    console.log(toolName)
-    // if(toolName == "JupyterHub"){
-    //   console.log(1)
-    //   try {
-    //     const response = await axios.get('http://127.0.0.1:5000/create-jupyterhub'); 
-    //     swal.fire({text:response.data.message});
-    //     // console.log(response.data.message)
-    
-    //   } catch (error) {
-    //     swal.fire({text:error});
-    //   }
-
-    // }
-    if (droppedTools.includes(toolName)) {
+  const handleDrop = async (tool) => {
+    if (droppedTools.some((droppedTool) => droppedTool.tool_name === tool.tool_name)) {
       // Tool already dropped
       return;
     }
-    // Update dropped tools
-    setTools((prevTools) => prevTools.filter((tool) => tool !== toolName));
-    setDroppedTools((prevTools) => [...prevTools, toolName]);
+    setTools((prevTools) => prevTools.filter((prevTool) => prevTool.tool_name !== tool.tool_name));
+    setDroppedTools((prevTools) => [...prevTools, tool]);
   };
 
   const deployTools = async () => {
-    console.log(droppedTools);
-    // Assuming this code is inside an asynchronous function
-try {
-  // Use Promise.all() to asynchronously execute multiple promises
-  await Promise.all(droppedTools.map(async (tool, index) => {
     try {
-      const response = await axios.get(`http://127.0.0.1:5000/installtool/${tool}`);
-      swal.fire({ text: response.data.message });
-      // console.log(response.data.message)
+      await Promise.all(droppedTools.map(async (tool) => {
+        try {
+          const response = await axios.get(`http://127.0.0.1:5000/installtool/${tool.tool_name}`);
+          swal.fire({ text: response.data.message });
+        } catch (error) {
+          swal.fire({ text: error.message });
+        }
+      }));
     } catch (error) {
-      swal.fire({ text: error.message }); // Use error.message to get the error message string
+      swal.fire({ text: error.message });
     }
-  }));
-} catch (error) {
-  swal.fire({ text: error.message }); // Handle any errors that might occur in the outer try-catch block
-}
-
-     
-
-    
-   
   };
 
   return (
@@ -154,22 +121,16 @@ try {
             <div className='flex-2 h-auto '>
               <h1 className="text-lg md:text-xl font-semibold">Cluster Name</h1>
             </div>
-            
           </div>
-          
           <div className='flex h-full flex-2 items-center justify-start '>
             <button
               type="button"
               className="w-auto hover:bg-[#33469e] w-full font-bold bg-[#132577] rounded mt-4 text-white p-4 px-6"
-              onMouseEnter={(e) => { e.target.style.cursor = 'pointer'; }} // Show hand cursor on hover
-              onMouseLeave={(e) => { e.target.style.cursor = 'auto'; }}
               onClick={deployTools}
             >
               Deploy Tool
             </button>
-            
           </div>
-          
         </div>
         <div>{installationStatus}</div>
         <DndProvider className="flex-2 h-full flex w-screen" backend={HTML5Backend}>
@@ -179,20 +140,16 @@ try {
               <ul className='mt-4 text-sm'>
                 {tools.map((tool, index) => (
                   <li key={index}>
-                    <Tool name={tool} onDrop={handleDrop} />
+                    <Tool tool={tool} onDrop={handleDrop} />
                   </li>
                 ))}
               </ul>
             </div>
-            
             <ClusterSpace className="flex flex-2 w-2/3" droppedTools={droppedTools} onDrop={handleDrop} />
           </div>
-          
         </DndProvider>
       </div>
       <Footer />
-
-
     </div>
   );
 };
