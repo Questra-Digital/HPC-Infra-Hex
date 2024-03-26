@@ -3,7 +3,7 @@ kubectl get services
 kubectl describe service your-service-name
 kubectl get pods
 kubectl get deployments
-kubectl port-forward service/kubeapps -n new-kubeapps 8080:80
+kubectl port-forward service/pythonserver-chart -n default 8080:80
 kubectl get svc -n bhub proxy-public -o jsonpath='{.spec.ports[0].nodePort}'
 		
 		
