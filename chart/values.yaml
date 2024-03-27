@@ -2,6 +2,7 @@ replicaCount: 1
 
 image:
   repository: usmanf07/repo-python
+
   pullPolicy: Always
   tag: "latest"
 

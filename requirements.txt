@@ -6,4 +6,3 @@ pyyaml
 pyhelm3 @git+https://github.com/stackhpc/pyhelm3.git
 pydantic>=1.8.0
 Flask-Cors
-
