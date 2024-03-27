@@ -4,6 +4,7 @@ import yaml
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 import uuid
+import time
 import subprocess
 import threading
 import asyncio
@@ -16,7 +17,7 @@ app = Flask(__name__)
 
 CORS(app)
 # MongoDB connection
-cliente = MongoClient('mongodb://orthoimplantsgu:pakistan@ac-cpo8knv-shard-00-00.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-01.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-02.eegqz25.mongodb.net:27017/?ssl=true&replicaSet=atlas-4i34th-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0')
+cliente = MongoClient('mongodb+srv://orthoimplantsgu:pakistan@cluster0.eegqz25.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
 db = cliente['kubernetes_db']
 
 # Kubernetes API client
@@ -229,34 +230,45 @@ def create_secret_yaml(username, password):
     }
     return yaml.dump(data)
 
-@app.route('/bind-binderhub', methods=['GET'])
 def bind_binderhub():
-  try:
-    jhub_tool = get_proxy_public_node_port("bhub")
-    ip_address = "http://192.168.56.10:"
-    port = jhub_tool["node_port"]
-    config_yaml_content = create_config_yaml("usmanf07/binderhub-", ip_address + str(port))
+    with app.app_context():
+        try:
+            jhub_tool = get_proxy_public_node_port("bhub")
+            ip_address = "http://192.168.56.10:"
+            port = jhub_tool["node_port"]
+            config_yaml_content = create_config_yaml("usmanf07/binderhub-", ip_address + str(port))
 
-    # Write YAML content to secret.yaml
-    with open('config.yaml', 'w') as file:
-        file.write(config_yaml_content)
+            # Write YAML content to secret.yaml
+            with open('config.yaml', 'w') as file:
+                file.write(config_yaml_content)
 
-    tool_name = "Binderhub"
-    collection = db['tools']
-    binder_tool = collection.find_one({"tool_name": tool_name})
-    helm_command = ""
-    if binder_tool:
-        helm_command = binder_tool.get("helm_command")
-        helm_command = helm_command.replace("install", "upgrade", 1)
-        #print(helm_command)
-        resultfinal =  execute_command(helm_command, tool_name)
-        binderport = get_service_port("bhub", "binder")
+            tool_name = "Binderhub"
+            collection = db['tools']
+            binder_tool = collection.find_one({"tool_name": tool_name})
+            helm_command = ""
+            if binder_tool:
+                helm_command = binder_tool.get("helm_command")
+                helm_command = helm_command.replace("install", "upgrade", 1)
+                resultfinal =  execute_command(helm_command, tool_name)
+                binderport = get_service_port("bhub", "binder")
 
-        return jsonify({"message": f"Started binding of Binderhub. Visit URL: 192.168.56.10:" + str(binderport["node_port"])})
-    
-  except Exception as e:
-      return jsonify({"error": f"An error occurred: {e}"}), 500
+                return jsonify({"message": f"Started binding of Binderhub. Visit URL: 192.168.56.10:" + str(binderport["node_port"])})
+        
+        except Exception as e:
+            return jsonify({"error": f"An error occurred: {e}"}), 500
 
+
+
+
+def run_timer():
+    while True:
+        time.sleep(30)
+        result = count_running_pods("bhub")
+        if result == "6/6":
+            bind_binderhub()
+            break
+        
+        
 @app.route('/create-binderhub', methods=['GET'])
 def create_binderhub():
     try:
@@ -289,7 +301,16 @@ def create_binderhub():
         if binder_tool:
             helm_command = binder_tool.get("helm_command")
 
-        resultfinal =  execute_command(helm_command, tool_name)
+            resultfinal =  execute_command(helm_command, tool_name)
+            collection.update_one(
+                {"tool_name": tool_name},
+                {"$set": {"installed": "true"}}
+            )
+
+            timer_thread = threading.Thread(target=run_timer)
+            timer_thread.daemon = True
+            timer_thread.start()
+
         return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
@@ -340,11 +361,20 @@ def create_jupyterhub():
             {"tool_name": tool_name},
             {"$set": {"installed": "true"}}
         )
+
         return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
         return jsonify({"error": f"An error occurred: {e}"}), 500
 
+@app.route('/count-pods/<namespace>', methods=['GET'])
+def count_running_pods(namespace):
+    pods = get_pods_in_namespace(namespace)
+    total_pods = len(pods)
+    running_pods = sum(1 for pod in pods if pod["status"] == "Running")
+    return f"{running_pods}/{total_pods}"
+ 
+@app.route('/get-pods/<namespace>', methods=['GET'])
 def get_pods_in_namespace(namespace):
     try:
         # Create Kubernetes API client
@@ -527,7 +557,6 @@ def install_tool(tool_name):
     # Add more conditions for other tools as needed
     else:
         return jsonify({"error": f"Installation for {tool_name} not implemented."}), 404
-
 
 
 if __name__ == "__main__":
