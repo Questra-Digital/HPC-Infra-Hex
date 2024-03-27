@@ -230,43 +230,32 @@ def create_secret_yaml(username, password):
     }
     return yaml.dump(data)
 
+
 def bind_binderhub():
-  with app.app_context():
-    try:
-        print("BIND CALLED")
-        jhub_tool = get_proxy_public_node_port("bhub")
-        ip_address = "http://192.168.56.10:"
-        port = jhub_tool["node_port"]
-        config_yaml_content = create_config_yaml("usmanf07/binderhub-", ip_address + str(port))
+  try:
+      #print("BIND CALLED")
+      jhub_tool = get_proxy_public_node_port("bhub")
+      ip_address = "http://192.168.56.10:"
+      port = jhub_tool["node_port"]
+      config_yaml_content = create_config_yaml("usmanf07/binderhub-", ip_address + str(port))
 
-        # Write YAML content to secret.yaml
-        with open('config.yaml', 'w') as file:
-            file.write(config_yaml_content)
+      # Write YAML content to secret.yaml
+      with open('config.yaml', 'w') as file:
+          file.write(config_yaml_content)
 
-        tool_name = "Binderhub"
-        collection = db['tools']
-        binder_tool = collection.find_one({"tool_name": tool_name})
-        helm_command = ""
-        if binder_tool:
-            helm_command = binder_tool.get("helm_command")
-            helm_command = helm_command.replace("install", "upgrade", 1)
-            resultfinal =  execute_command(helm_command, tool_name)
-            binderport = get_service_port("bhub", "binder")
-            return jsonify({"message": f"Started binding of Binderhub. Visit URL: 192.168.56.10:" + str(binderport["node_port"])})
-    except Exception as e:
-        return jsonify({"error": f"An error occurred: {e}"}), 500
-
-
-def run_timer():
-    while True:
-        #print("TIMER CALLED")
-        time.sleep(30)
-        result = count_running_pods("bhub")
-        running_pods, total_pods = map(int, result.split('/'))
-        if running_pods == total_pods:
-            return bind_binderhub()
-        
-        
+      tool_name = "Binderhub"
+      collection = db['tools']
+      binder_tool = collection.find_one({"tool_name": tool_name})
+      helm_command = ""
+      if binder_tool:
+          helm_command = binder_tool.get("helm_command")
+          helm_command = helm_command.replace("install", "upgrade", 1)
+          resultfinal =  execute_command(helm_command, tool_name)
+          binderport = get_service_port("bhub", "binder")
+          return f"http://192.168.56.10:{binderport['node_port']}"
+      
+  except Exception as e:
+      return {"error": f"An error occurred: {e}"}, 500
 @app.route('/create-binderhub', methods=['GET'])
 def create_binderhub():
     try:
@@ -304,11 +293,9 @@ def create_binderhub():
                 {"tool_name": tool_name},
                 {"$set": {"installed": "true"}}
             )
-
-            thread = threading.Thread(target=run_timer)
-            thread.start()
-
-        return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+            time.sleep(10)
+            binder_url = bind_binderhub()
+        return jsonify({"binder_url": binder_url, "message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
       return jsonify({"error": f"An error occurred: {e}"}), 500
@@ -556,7 +543,6 @@ def install_tool(tool_name):
         return create_binderhub()
     else:
         return jsonify({"error": f"Installation for {tool_name} not implemented."}), 404
-
 
 if __name__ == "__main__":
     app.run(debug=True)
