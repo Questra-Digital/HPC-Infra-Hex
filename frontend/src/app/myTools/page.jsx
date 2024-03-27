@@ -4,14 +4,14 @@ import axios from 'axios';
 import MainNavbar from '../Components/Shared/MainNavbar';
 import Footer from '../Components/Footer';
 import Link from 'next/link'
-
+import API_BASE_URL from '../URL';
 const MyTools = () => {
   const [tools, setTools] = useState([]);
 
   useEffect(() => {
     const fetchTools = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:5000/tools'); 
+        const response = await axios.get(`${API_BASE_URL}/tools`); 
         const filteredTools = response.data.filter(tool =>  (tool.installed  == "pending" || tool.installed == "true") );
         console.log(response.data);
         setTools(filteredTools);

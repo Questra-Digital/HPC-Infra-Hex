@@ -6,6 +6,7 @@ import { FaTrash } from 'react-icons/fa';
 import Swal from 'sweetalert2'
 import MainNavbar from '../Components/Shared/MainNavbar';
 import Footer from '../Components/Footer';
+import API_BASE_URL from '../URL';
 
 const AddCluster = () => {
   
@@ -61,7 +62,7 @@ const AddCluster = () => {
 
       // Make Axios POST request
       console.log(payload);
-      const response = await Axios.post('http://127.0.0.1:5000/generate_vagrantfile', payload);
+      const response = await Axios.post(`${API_BASE_URL}/generate_vagrantfile`, payload);
 
       // Handle the response if needed
       console.log(response.data); // Log the response data to the console
@@ -72,7 +73,7 @@ const AddCluster = () => {
 
   const PowerOnVagrant = async () => {
     try {
-      const response = await Axios.get('http://127.0.0.1:5000/vagrant_up_all');
+      const response = await Axios.get(`${API_BASE_URL}/vagrant_up_all`);
 
       Swal.fire({
         title: 'Success!',
@@ -92,7 +93,7 @@ const AddCluster = () => {
 
   const VagrantStatus = async () => {
     try {
-      const response = await Axios.get('http://127.0.0.1:5000/vagrant_status');
+      const response = await Axios.get(`${API_BASE_URL}/vagrant_status`);
 
       Swal.fire({
         title: 'Success!',

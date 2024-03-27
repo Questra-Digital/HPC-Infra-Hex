@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Axios from 'axios';
 import MainNavbar from '../Components/Shared/MainNavbar';
 import Footer from '../Components/Footer';
-
+import API_BASE_URL from '../URL';
 const AddCluster = () => {
   const [command, setCommand] = useState('');
   const [commandResponse, setCommandResponse] = useState('');
@@ -20,7 +20,7 @@ const AddCluster = () => {
   const handleEnterPress = async (e) => {
     if (e.key === 'Enter') {
       try {
-        const response = await Axios.post(`http://127.0.0.1:5000/run-command/${vmware}`, { command });
+        const response = await Axios.post(`${API_BASE_URL}/run-command/${vmware}`, { command });
         setCommandResponse(JSON.stringify(response.data));
       } catch (error) {
         setCommandResponse(JSON.stringify(error));

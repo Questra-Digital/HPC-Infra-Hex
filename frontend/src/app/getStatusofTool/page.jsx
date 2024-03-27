@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import MainNavbar from '../Components/Shared/MainNavbar';
 import Footer from '../Components/Footer';
 
-
+import API_BASE_URL from '../URL';
 
 const getStatus = () => {
   const [status,setStat] = useState ([]);
@@ -20,7 +20,7 @@ const getStatus = () => {
     const fetchStatus = async () => {
 
       try {
-        const response = await axios.get('http://127.0.0.1:5000/get-status/JupyterHub'); 
+        const response = await axios.get(`${API_BASE_URL}/get-status/JupyterHub`); 
         console.log("sttaus" , response.data.status);
         setStat(response.data.status);
       } catch (error) {
@@ -34,7 +34,7 @@ const getStatus = () => {
     const getPods = async () => {
       if(name == "JupyterHub"){
         try {
-          const response = await axios.get('http://127.0.0.1:5000/get-pods/jhub'); 
+          const response = await axios.get(`${API_BASE_URL}/get-pods/jhub`); 
           // console.log("podss" , response.data.pods[0].name);
           setPods(response.data.pods);
           const areAllPodsRunning = response.data.pods.every(pod => pod.status === "Running");
@@ -60,7 +60,7 @@ const getStatus = () => {
   const startTool = async () => {
     try {
       // Send API call to backend to start the tool
-      const response = await axios.get('http://127.0.0.1:5000/get-node-port/jhub', {
+      const response = await axios.get(`${API_BASE_URL}/get-node-port/jhub`, {
         // Add any data needed for starting the tool
       });
 

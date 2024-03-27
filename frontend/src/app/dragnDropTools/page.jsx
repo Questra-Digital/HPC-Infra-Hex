@@ -6,6 +6,7 @@ import { useDrag, DndProvider, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import MainNavbar from '../Components/Shared/MainNavbar';
 import Footer from '../Components/Footer';
+import API_BASE_URL from '../URL';
 
 const ItemTypes = {
   TOOL: 'tool',
@@ -79,7 +80,7 @@ const DragAndDropPage = () => {
 
   const fetchDataFromAPI = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:5000/tools'); 
+      const response = await axios.get(`${API_BASE_URL}/tools`); 
       const filteredTools = response.data.filter(tool => tool.installed === "false"); // assuming 'installed' is a boolean
       setTools(filteredTools);
     } catch (error) {
@@ -100,7 +101,7 @@ const DragAndDropPage = () => {
     try {
       await Promise.all(droppedTools.map(async (tool) => {
         try {
-          const response = await axios.get(`http://127.0.0.1:5000/installtool/${tool.tool_name}`);
+          const response = await axios.get(`${API_BASE_URL}/installtool/${tool.tool_name}`);
           swal.fire({ text: response.data.message });
         } catch (error) {
           swal.fire({ text: error.message });
