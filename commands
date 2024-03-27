@@ -3,8 +3,8 @@ kubectl get services
 kubectl describe service your-service-name
 kubectl get pods
 kubectl get deployments
-kubectl port-forward service/kubeapps -n new-kubeapps 8080:80
-kubectl get svc -n jhub proxy-public -o jsonpath='{.spec.ports[0].nodePort}'
+kubectl port-forward service/pythonserver-chart -n default 8080:80
+kubectl get svc -n bhub proxy-public -o jsonpath='{.spec.ports[0].nodePort}'
 		
 		
 #commands to setup the jupyter hub
@@ -96,4 +96,12 @@ echo 'export PATH=$PATH:~/.local/bin' >> ~/.bashrc
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
 chmod 700 get_helm.sh
 ./get_helm.sh
+
+
+
+#################
+sudo docker build -t usmanf07/repo-python:latest .
+sudo docker push usmanf07/repo-python:latest
+helm install pythonserver ./chart
+
 

@@ -9,9 +9,12 @@ import threading
 import asyncio
 from pyhelm3 import Client
 from kubernetes.stream import stream
+from flask_cors import CORS 
 
 app = Flask(__name__)
 
+
+CORS(app)
 # MongoDB connection
 cliente = MongoClient('mongodb://orthoimplantsgu:pakistan@ac-cpo8knv-shard-00-00.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-01.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-02.eegqz25.mongodb.net:27017/?ssl=true&replicaSet=atlas-4i34th-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0')
 db = cliente['kubernetes_db']
@@ -19,16 +22,23 @@ db = cliente['kubernetes_db']
 # Kubernetes API client
 config.load_incluster_config()
 k8s_client = client.ApiClient()
-
-
-
-
-
 Coreapi = client.CoreV1Api()
-
-
 current_node = None
+output = {}
 
+
+@app.route('/tools', methods=['GET'])
+def get_tools():
+    try:
+        # Accessing the 'files' collection
+        collection = db['tools']
+
+        # Fetch all documents from the collection
+        tools = list(collection.find({}, {"_id": 0}))
+
+        return jsonify(tools)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 # Function to update current_node based on pods in default namespace
 def update_current_node():
     global current_node
@@ -43,6 +53,7 @@ def update_current_node():
                 break
     except Exception as e:
         print(f"Error updating current node: {e}")
+
 
 @app.route('/')
 def hello():
@@ -196,7 +207,94 @@ def create_persistent_volume(namespace, file_name):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def create_config_yaml(image_prefix, hub_url):
+    data = {
+        'config': {
+            'BinderHub': {
+                'use_registry': True,
+                'image_prefix': image_prefix
+            }
+        }
+    }
+    if hub_url:
+        data['config']['BinderHub']['hub_url'] = hub_url
+    return yaml.dump(data)
+  
+def create_secret_yaml(username, password):
+    data = {
+        'registry': {
+            'username': username,
+            'password': password
+        }
+    }
+    return yaml.dump(data)
 
+@app.route('/bind-binderhub', methods=['GET'])
+def bind_binderhub():
+  try:
+    jhub_tool = get_proxy_public_node_port("bhub")
+    ip_address = "http://192.168.56.10:"
+    port = jhub_tool["node_port"]
+    config_yaml_content = create_config_yaml("usmanf07/binderhub-", ip_address + str(port))
+
+    # Write YAML content to secret.yaml
+    with open('config.yaml', 'w') as file:
+        file.write(config_yaml_content)
+
+    tool_name = "Binderhub"
+    collection = db['tools']
+    binder_tool = collection.find_one({"tool_name": tool_name})
+    helm_command = ""
+    if binder_tool:
+        helm_command = binder_tool.get("helm_command")
+        helm_command = helm_command.replace("install", "upgrade", 1)
+        #print(helm_command)
+        resultfinal =  execute_command(helm_command, tool_name)
+        binderport = get_service_port("bhub", "binder")
+
+        return jsonify({"message": f"Started binding of Binderhub. Visit URL: 192.168.56.10:" + str(binderport["node_port"])})
+    
+  except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+
+@app.route('/create-binderhub', methods=['GET'])
+def create_binderhub():
+    try:
+        pv_file_name = "bhub_pv.yaml"
+        pv_result = get_file_content(pv_file_name)
+
+        
+        namespace = "bhub"
+        result1 = create_persistent_volume(namespace, pv_file_name)
+
+        secret_yaml_content = create_secret_yaml("usmanf07", "Virus@123")
+
+        # Write YAML content to secret.yaml
+        with open('secret.yaml', 'w') as file:
+            file.write(secret_yaml_content)
+
+        config_yaml_content = create_config_yaml("usmanf07/binderhub-", "")
+
+        # Write YAML content to secret.yaml
+        with open('config.yaml', 'w') as file:
+            file.write(config_yaml_content)
+        
+        #execute_command("helm repo add jupyterhub https://jupyterhub.github.io/helm-chart") 
+        #execute_command("helm repo update")
+
+        tool_name = "Binderhub"
+        collection = db['tools']
+        binder_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if binder_tool:
+            helm_command = binder_tool.get("helm_command")
+
+        resultfinal =  execute_command(helm_command, tool_name)
+        return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+   
 @app.route('/create-jupyterhub', methods=['GET'])
 def create_jupyterhub():
     try:
@@ -237,13 +335,15 @@ def create_jupyterhub():
         if jupyter_tool:
             helm_command = jupyter_tool.get("helm_command")
 
-        resultfinal =  execute_command(helm_command)
+        resultfinal =  execute_command(helm_command,tool_name)
+        collection.update_one(
+            {"tool_name": tool_name},
+            {"$set": {"installed": "true"}}
+        )
         return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
         return jsonify({"error": f"An error occurred: {e}"}), 500
-
-        
 
 def get_pods_in_namespace(namespace):
     try:
@@ -281,8 +381,30 @@ def get_pods(namespace):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/get-service-port/<namespace>/<service>', methods=['GET'])
+def get_service_port(namespace, service):
+    try:
+        # Load Kubernetes configuration from default location
+       
 
+        # Create a Kubernetes API client
+        v1 = client.CoreV1Api()
 
+        # Define the service name
+        service_name = service
+
+        # Get the service details
+        service = v1.read_namespaced_service(service_name, namespace)
+
+        # Get the NodePort
+        node_port = service.spec.ports[0].node_port
+
+        return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.route('/get-proxy/<namespace>', methods=['GET'])
 def get_proxy_public_node_port(namespace):
     try:
         # Load Kubernetes configuration from default location
@@ -304,7 +426,7 @@ def get_proxy_public_node_port(namespace):
 
     except Exception as e:
         return {"error": str(e)}
-
+    
 @app.route('/get-node-port/<namespace>', methods=['GET'])
 def get_node_port(namespace):
     try:
@@ -317,14 +439,7 @@ def get_node_port(namespace):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-
-
-
-
-output = ""
-
-def pod_exec(name, namespace, command):
+def pod_exec(name, namespace, command,tool_name):
     global output
 
     # Load kubeconfig file
@@ -342,42 +457,76 @@ def pod_exec(name, namespace, command):
                   stderr=True, stdin=False,
                   stdout=True, tty=False,
                   _preload_content=False)
-
+    output.setdefault(tool_name, "")
+    output[tool_name] = ""
     while resp.is_open():
         resp.update(timeout=1)
         stdout = resp.read_stdout() or ""
         stderr = resp.read_stderr() or ""
-        output += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
+        output[tool_name] += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
 
 
 
 @app.route('/execute-command')
-def execute_command(command):
+def execute_command(command,tool_name):
     global output
 
     # Get the current node's name
     
-
+    update_current_node()
     if current_node:
         # Define the command to run
         
 
         # Execute the pod_exec function in a background thread
-        thread = threading.Thread(target=pod_exec, args=(current_node, "default", command))
+        thread = threading.Thread(target=pod_exec, args=(current_node, "default", command,tool_name))
         thread.start()
 
         return jsonify({"message": "Command execution started."})
     else:
         return jsonify({"error": "Current node not found."})
 
-@app.route('/get-status')
-def get_status():
+@app.route('/get-status/<tool_name>', methods=['GET'])
+def get_status(tool_name):
     global output
-    return jsonify({"status": output})
+    if tool_name in output:
+        return jsonify({"status": output[tool_name]})
+    else:
+        return jsonify({"error": f"Status for {tool_name} not found."})
 
 
+@app.route('/delete-all-pvs', methods=['DELETE'])
+def delete_all_pvs():
+    try:
+        k8s= client.CoreV1Api()
+        # Get all PersistentVolumes
+        pvs = k8s.list_persistent_volume().items
 
+        deleted_pvs = []
+        for pv in pvs:
+            # Check if PV status is "Available" or "Released"
+            if pv.status.phase in ["Available", "Released"]:
+                # Delete the PV
+                try:
+                    k8s.delete_persistent_volume(pv.metadata.name, body=client.V1DeleteOptions())
+                    deleted_pvs.append(pv.metadata.name)
+                except ApiException as e:
+                    return jsonify({"error": f"Error deleting PV '{pv.metadata.name}': {e}"}), 500
 
+        return jsonify({"message": f"Deleted PVs: {deleted_pvs}"}), 200
+
+    except ApiException as e:
+        return jsonify({"error": f"Kubernetes API error: {e.reason}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {e}"}), 500
+
+@app.route('/installtool/<tool_name>', methods=['GET'])
+def install_tool(tool_name):
+    if tool_name == "JupyterHub":
+        return create_jupyterhub()
+    # Add more conditions for other tools as needed
+    else:
+        return jsonify({"error": f"Installation for {tool_name} not implemented."}), 404
 
 
 

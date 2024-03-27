@@ -1,0 +1,4 @@
+config:
+  BinderHub:
+    image_prefix: usmanf07/binderhub-
+    use_registry: true

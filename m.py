@@ -207,7 +207,94 @@ def create_persistent_volume(namespace, file_name):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def create_config_yaml(image_prefix, hub_url):
+    data = {
+        'config': {
+            'BinderHub': {
+                'use_registry': True,
+                'image_prefix': image_prefix
+            }
+        }
+    }
+    if hub_url:
+        data['config']['BinderHub']['hub_url'] = hub_url
+    return yaml.dump(data)
+  
+def create_secret_yaml(username, password):
+    data = {
+        'registry': {
+            'username': username,
+            'password': password
+        }
+    }
+    return yaml.dump(data)
 
+@app.route('/bind-binderhub', methods=['GET'])
+def bind_binderhub():
+  try:
+    jhub_tool = get_proxy_public_node_port("bhub")
+    ip_address = "http://192.168.56.10:"
+    port = jhub_tool["node_port"]
+    config_yaml_content = create_config_yaml("usmanf07/binderhub-", ip_address + str(port))
+
+    # Write YAML content to secret.yaml
+    with open('config.yaml', 'w') as file:
+        file.write(config_yaml_content)
+
+    tool_name = "Binderhub"
+    collection = db['tools']
+    binder_tool = collection.find_one({"tool_name": tool_name})
+    helm_command = ""
+    if binder_tool:
+        helm_command = binder_tool.get("helm_command")
+        helm_command = helm_command.replace("install", "upgrade", 1)
+        #print(helm_command)
+        resultfinal =  execute_command(helm_command, tool_name)
+        binderport = get_service_port("bhub", "binder")
+
+        return jsonify({"message": f"Started binding of Binderhub. Visit URL: 192.168.56.10:" + str(binderport["node_port"])})
+    
+  except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+
+@app.route('/create-binderhub', methods=['GET'])
+def create_binderhub():
+    try:
+        pv_file_name = "bhub_pv.yaml"
+        pv_result = get_file_content(pv_file_name)
+
+        
+        namespace = "bhub"
+        result1 = create_persistent_volume(namespace, pv_file_name)
+
+        secret_yaml_content = create_secret_yaml("usmanf07", "Virus@123")
+
+        # Write YAML content to secret.yaml
+        with open('secret.yaml', 'w') as file:
+            file.write(secret_yaml_content)
+
+        config_yaml_content = create_config_yaml("usmanf07/binderhub-", "")
+
+        # Write YAML content to secret.yaml
+        with open('config.yaml', 'w') as file:
+            file.write(config_yaml_content)
+        
+        #execute_command("helm repo add jupyterhub https://jupyterhub.github.io/helm-chart") 
+        #execute_command("helm repo update")
+
+        tool_name = "Binderhub"
+        collection = db['tools']
+        binder_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if binder_tool:
+            helm_command = binder_tool.get("helm_command")
+
+        resultfinal =  execute_command(helm_command, tool_name)
+        return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+   
 @app.route('/create-jupyterhub', methods=['GET'])
 def create_jupyterhub():
     try:
@@ -294,20 +381,52 @@ def get_pods(namespace):
         return jsonify({"error": str(e)}), 500
 
 
-
-
-def get_proxy_public_node_port(namespace):
+@app.route('/get-service-port/<namespace>/<service>', methods=['GET'])
+def get_service_port(namespace, service):
     try:
-        
+        # Load Kubernetes configuration from default location
+       
+
+        # Create a Kubernetes API client
         v1 = client.CoreV1Api()
-        service_name = "proxy-public"
+
+        # Define the service name
+        service_name = service
+
+        # Get the service details
         service = v1.read_namespaced_service(service_name, namespace)
+
+        # Get the NodePort
         node_port = service.spec.ports[0].node_port
+
         return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
 
     except Exception as e:
         return {"error": str(e)}
 
+@app.route('/get-proxy/<namespace>', methods=['GET'])
+def get_proxy_public_node_port(namespace):
+    try:
+        # Load Kubernetes configuration from default location
+       
+
+        # Create a Kubernetes API client
+        v1 = client.CoreV1Api()
+
+        # Define the service name
+        service_name = "proxy-public"
+
+        # Get the service details
+        service = v1.read_namespaced_service(service_name, namespace)
+
+        # Get the NodePort
+        node_port = service.spec.ports[0].node_port
+
+        return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
+
+    except Exception as e:
+        return {"error": str(e)}
+    
 @app.route('/get-node-port/<namespace>', methods=['GET'])
 def get_node_port(namespace):
     try:
