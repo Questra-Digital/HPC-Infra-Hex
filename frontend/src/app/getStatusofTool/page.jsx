@@ -14,13 +14,14 @@ const getStatus = () => {
   const name = searchParams.get("name");
   const [allPodsRunning, setAllPodsRunning] = useState(false); // State to track if all pods are running
   
-
+  
 
   useEffect(() => {
+    
     const fetchStatus = async () => {
 
       try {
-        const response = await axios.get(`${API_BASE_URL}/get-status/JupyterHub`); 
+        const response = await axios.get(`${API_BASE_URL}/get-status/${name}`); 
         console.log("sttaus" , response.data.status);
         setStat(response.data.status);
       } catch (error) {
@@ -32,18 +33,41 @@ const getStatus = () => {
 
 
     const getPods = async () => {
-      if(name == "JupyterHub"){
+      if (name === "JupyterHub" || name === "BinderHub") {
         try {
-          const response = await axios.get(`${API_BASE_URL}/get-pods/jhub`); 
-          // console.log("podss" , response.data.pods[0].name);
-          setPods(response.data.pods);
-          const areAllPodsRunning = response.data.pods.every(pod => pod.status === "Running");
-          setAllPodsRunning(areAllPodsRunning);
+          let response;
+          if (name === "JupyterHub") {
+            response = await axios.get(`${API_BASE_URL}/get-pods/jhub`);
+          } else if (name === "BinderHub") {
+            response = await axios.get(`${API_BASE_URL}/get-pods/bhub`);
+          }
+          
+          if (response && response.data) { // Ensure response and response.data exist
+            console.log("response: ", response.data);
+            setPods(response.data);
+            
+            // Check if all pods are running
+            let allRunning = true;
+            for (const pod of response.data) { // Iterate over response.data
+              if (pod.status !== "Running") {
+                allRunning = false;
+                break;
+              }
+            }
+            setAllPodsRunning(allRunning);
+          } else {
+            console.error('Error: Pod data not available in API response');
+          }
         } catch (error) {
           console.error('Error fetching pods:', error);
         }
+      } else {
+        console.error('Unsupported tool name:', name);
       }
     };
+    
+    
+    
 
     fetchStatus();
     getPods();
@@ -52,27 +76,48 @@ const getStatus = () => {
   useEffect(() => {
     // Check if all pods are running when pods state changes
     if (pods.length > 0) {
-      const areAllPodsRunning = pods.every(pod => pod.status === "Running");
-      setAllPodsRunning(areAllPodsRunning);
+      let allRunning = true;
+      for (const pod of pods) {
+        if (pod.status !== "Running") {
+          allRunning = false;
+          break;
+        }
+      }
+      setAllPodsRunning(allRunning);
+    } else {
+      // If there are no pods, set allPodsRunning to false
+      setAllPodsRunning(false);
     }
   }, [pods]);
+  
 
   const startTool = async () => {
     try {
-      // Send API call to backend to start the tool
-      const response = await axios.get(`${API_BASE_URL}/get-node-port/jhub`, {
-        // Add any data needed for starting the tool
-      });
-
-      console.log(response.data.node_port);
-      
-      // Handle the response to open the new page
-      const port = response.data.node_port; // Assuming the response contains the port
-      window.open(`http://192.168.56.10:${port}`);
+      let response;
+      let endpoint;
+  
+      if (name === "JupyterHub") {
+        endpoint = `${API_BASE_URL}/get-node-port/jhub`;
+      } else if (name === "BinderHub") {
+        endpoint = `${API_BASE_URL}/get-service-port/bhub/binder`;
+      } else {
+        console.error('Unsupported tool name:', name);
+        return;
+      }
+  
+      response = await axios.get(endpoint);
+  
+      if (response && response.data && response.data.node_port) {
+        const port = response.data.node_port;
+        window.open(`http://192.168.56.10:${port}`);
+      } else {
+        console.error('Error: Invalid or missing port in API response');
+      }
     } catch (error) {
       console.error('Error starting tool:', error);
     }
   };
+  
 
  
   
