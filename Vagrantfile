@@ -1,14 +1,15 @@
 IMAGE_NAME = "bento/ubuntu-20.04"
 N = 2
-
 Vagrant.configure("2") do |config|
     config.ssh.insert_key = false
 
-    config.vm.provider "virtualbox" do |v|
-        v.memory = 2048
-        v.cpus = 2
+    config.vm.provider "virtualbox" do |vb|
+        vb.memory = 2048
+        vb.cpus = 2
+        # Use VirtIO network adapter for improved performance
+        vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
     end
-      
+
     config.vm.define "k8s-master" do |master|
         master.vm.box = IMAGE_NAME
         master.vm.network "private_network", ip: "192.168.56.10"
@@ -29,3 +30,4 @@ Vagrant.configure("2") do |config|
         end
     end
 end
+
