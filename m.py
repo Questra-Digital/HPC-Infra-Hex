@@ -268,6 +268,61 @@ def bind_binderhub():
       
   except Exception as e:
       return {"error": f"An error occurred: {e}"}, 500
+
+@app.route('/create-grafana', methods=['GET'])
+def create_grafana():
+    try:
+        tool_name = "Grafana"
+        collection = db['tools']
+        grafana_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if grafana_tool:
+            execute_command("helm install grafana grafana/grafana --namespace=graf",tool_name)
+            collection.update_one(
+                {"tool_name": tool_name},
+                {"$set": {"installed": "true"}}
+            )
+            
+            return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+    
+@app.route('/create-prometheus', methods=['GET'])
+def create_prometheus():
+    try:
+        pv_file_name = "prom_pv.yaml"
+        result = get_file_content(pv_file_name)
+
+        pvv_file_name = "prom_pvv.yaml"
+        result = get_file_content(pv_file_name)
+
+        namespace = "default"
+        result1 = create_persistent_volume(namespace, pv_file_name)
+
+        if result1.status_code != 200:
+            # Return error response if PV creation failed
+            return result1
+
+        # Step 3: Call create_persistent_volume() for the second time with the same file
+        result2 = create_persistent_volume(namespace, pv_file_name)
+        
+        tool_name = "Prometheus"
+        collection = db['tools']
+        prom_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if prom_tool:
+            execute_command("helm install prometheus prometheus-community/prometheus --namespace=prom",tool_name)
+            collection.update_one(
+                {"tool_name": tool_name},
+                {"$set": {"installed": "true"}}
+            )
+            
+            return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+    
 @app.route('/create-binderhub', methods=['GET'])
 def create_binderhub():
     try:
@@ -554,6 +609,12 @@ def install_tool(tool_name):
     elif tool_name == "BinderHub":
         
         return create_binderhub()
+    elif tool_name == "Prometheus":
+        
+        return create_prometheus()
+    elif tool_name == "Grafana":
+        
+        return create_grafana()
     else:
         return jsonify({"error": f"Installation for {tool_name} not implemented."}), 404
 

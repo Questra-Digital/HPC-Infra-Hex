@@ -33,13 +33,19 @@ const getStatus = () => {
 
 
     const getPods = async () => {
-      if (name === "JupyterHub" || name === "BinderHub") {
+      if (name === "JupyterHub" || name === "BinderHub" || name === "Prometheus" || name === "Grafana") {
         try {
           let response;
           if (name === "JupyterHub") {
             response = await axios.get(`${API_BASE_URL}/get-pods/jhub`);
           } else if (name === "BinderHub") {
             response = await axios.get(`${API_BASE_URL}/get-pods/bhub`);
+          }
+          else if (name === "Prometheus") {
+            response = await axios.get(`${API_BASE_URL}/get-pods/prom`);
+          }
+          else if (name === "Grafana") {
+            response = await axios.get(`${API_BASE_URL}/get-pods/graf`);
           }
           
           if (response && response.data) { // Ensure response and response.data exist
@@ -100,7 +106,14 @@ const getStatus = () => {
         endpoint = `${API_BASE_URL}/get-node-port/jhub`;
       } else if (name === "BinderHub") {
         endpoint = `${API_BASE_URL}/get-service-port/bhub/binder`;
-      } else {
+      } 
+      else if (name === "Prometheus") {
+        endpoint = `${API_BASE_URL}/get-service-port/prom/prometheus-server-ext`;
+      }
+      else if (name === "Grafana") {
+        endpoint = `${API_BASE_URL}/get-service-port/graf/grafana-ext`;
+      }
+      else {
         console.error('Unsupported tool name:', name);
         return;
       }

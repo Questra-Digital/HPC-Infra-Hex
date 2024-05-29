@@ -105,3 +105,16 @@ sudo docker push usmanf07/repo-python:latest
 helm install pythonserver ./chart
 
 
+
+###########################
+kubectl get secret --namespace graf grafana -o yaml
+
+echo “password_value” | openssl base64 -d ; echo
+
+echo “username_value” | openssl base64 -d ; echo
+
+
+kubectl expose service prometheus-server --type=NodePort --target-port=9090 --name=prometheus-server-ext -n prom
+
+kubectl expose service grafana --type=NodePort --target-port=3000 --name=grafana-ext -n prom
+

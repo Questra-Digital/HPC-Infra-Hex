@@ -27,7 +27,19 @@ Coreapi = client.CoreV1Api()
 current_node = None
 output = {}
 
+@app.route('/reset-installed', methods=['GET'])
+def reset_installed():
+    try:
+        # Accessing the 'tools' collection
+        collection = db['tools']
 
+        # Update all documents in the collection, setting 'installed' to false
+        collection.update_many({}, {"$set": {"installed": "false"}})
+
+        return jsonify({"message": "All tools' 'installed' status reset to false successfully."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.route('/tools', methods=['GET'])
 def get_tools():
     try:
@@ -233,7 +245,7 @@ def create_secret_yaml(username, password):
 
 def bind_binderhub():
   try:
-      #print("BIND CALLED")
+      print("BIND CALLED")
       jhub_tool = get_proxy_public_node_port("bhub")
       ip_address = "http://192.168.56.10:"
       port = jhub_tool["node_port"]
@@ -243,7 +255,7 @@ def bind_binderhub():
       with open('config.yaml', 'w') as file:
           file.write(config_yaml_content)
 
-      tool_name = "Binderhub"
+      tool_name = "BinderHub"
       collection = db['tools']
       binder_tool = collection.find_one({"tool_name": tool_name})
       helm_command = ""
@@ -251,11 +263,66 @@ def bind_binderhub():
           helm_command = binder_tool.get("helm_command")
           helm_command = helm_command.replace("install", "upgrade", 1)
           resultfinal =  execute_command(helm_command, tool_name)
-          binderport = get_service_port("bhub", "binder")
-          return f"http://192.168.56.10:{binderport['node_port']}"
+          print(resultfinal)
+          return f"ok"
       
   except Exception as e:
       return {"error": f"An error occurred: {e}"}, 500
+
+@app.route('/create-grafana', methods=['GET'])
+def create_grafana():
+    try:
+        tool_name = "Grafana"
+        collection = db['tools']
+        grafana_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if grafana_tool:
+            execute_command("helm install grafana grafana/grafana --namespace=graf",tool_name)
+            collection.update_one(
+                {"tool_name": tool_name},
+                {"$set": {"installed": "true"}}
+            )
+            
+            return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+    
+@app.route('/create-prometheus', methods=['GET'])
+def create_prometheus():
+    try:
+        pv_file_name = "prom_pv.yaml"
+        result = get_file_content(pv_file_name)
+
+        pvv_file_name = "prom_pvv.yaml"
+        result = get_file_content(pv_file_name)
+
+        namespace = "default"
+        result1 = create_persistent_volume(namespace, pv_file_name)
+
+        if result1.status_code != 200:
+            # Return error response if PV creation failed
+            return result1
+
+        # Step 3: Call create_persistent_volume() for the second time with the same file
+        result2 = create_persistent_volume(namespace, pv_file_name)
+        
+        tool_name = "Prometheus"
+        collection = db['tools']
+        prom_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if prom_tool:
+            execute_command("helm install prometheus prometheus-community/prometheus --namespace=prom",tool_name)
+            collection.update_one(
+                {"tool_name": tool_name},
+                {"$set": {"installed": "true"}}
+            )
+            
+            return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+    
 @app.route('/create-binderhub', methods=['GET'])
 def create_binderhub():
     try:
@@ -281,7 +348,7 @@ def create_binderhub():
         #execute_command("helm repo add jupyterhub https://jupyterhub.github.io/helm-chart") 
         #execute_command("helm repo update")
 
-        tool_name = "Binderhub"
+        tool_name = "BinderHub"
         collection = db['tools']
         binder_tool = collection.find_one({"tool_name": tool_name})
         helm_command = ""
@@ -294,8 +361,9 @@ def create_binderhub():
                 {"$set": {"installed": "true"}}
             )
             time.sleep(10)
-            binder_url = bind_binderhub()
-        return jsonify({"binder_url": binder_url, "message": f"Started execution of Helm command for {tool_name} in the background."})
+            bind_binderhub()
+            #time.sleep(1)
+            return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
       return jsonify({"error": f"An error occurred: {e}"}), 500
@@ -541,6 +609,12 @@ def install_tool(tool_name):
     elif tool_name == "BinderHub":
         
         return create_binderhub()
+    elif tool_name == "Prometheus":
+        
+        return create_prometheus()
+    elif tool_name == "Grafana":
+        
+        return create_grafana()
     else:
         return jsonify({"error": f"Installation for {tool_name} not implemented."}), 404
 

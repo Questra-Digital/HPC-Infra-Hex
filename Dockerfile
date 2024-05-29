@@ -38,6 +38,10 @@ RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/s
 # Add the Helm repository for JupyterHub
 RUN helm repo add jupyterhub https://jupyterhub.github.io/helm-chart/
 
+RUN helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
+RUN helm repo add grafana https://grafana.github.io/helm-charts
+
 # Update the Helm repositories
 RUN helm repo update
 # Install any needed packages specified in requirements.txt
