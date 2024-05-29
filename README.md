@@ -35,3 +35,14 @@ python3 -m pip install --user argcomplete
 
 activate-global-python-argcomplete --user
 source ~/.bash_completion
+
+### Backend Server
+python3 main.py
+
+### Frontend Server
+
+npm install
+
+npm run dev
+
+Test line

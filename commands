@@ -1,0 +1,120 @@
+kubectl port-forward service/rel-chart 8080:80
+kubectl get services
+kubectl describe service your-service-name
+kubectl get pods
+kubectl get deployments
+kubectl port-forward service/pythonserver-chart -n default 8080:80
+kubectl get svc -n bhub proxy-public -o jsonpath='{.spec.ports[0].nodePort}'
+		
+		
+#commands to setup the jupyter hub
+
+#Login to k8s-master
+vagrant ssh k8s-master
+cd ..
+cd ..
+mkdir shared
+mkdir nfs
+sudo nano /etc/exports
+# paste this "/shared/nfs *(rw,sync,no_subtree_check)"
+exit
+
+sudo mkdir -p /shared/nfs
+sudo chmod 777 /shared/nfs  # Adjust permissions as needed for your use case
+
+
+# install nfs in node 1 - node 2 by 
+vagrant ssh node-1	
+sudo apt update
+sudo apt install nfs-common
+sudo mkdir /mnt/nfs
+sudo mount 192.168.56.10:/shared/nfs /mnt/nfs
+exit
+
+#same for node-2
+
+#now there is a file values in the repo if you have helm installed 
+helm upgrade --cleanup-on-fail --install my-jupyter jupyterhub/jupyterhub --namespace jhub --create-namespace --values values.yaml
+
+
+#create storage class 
+kubectl apply -f nfs-storage-class.yaml 
+
+#create pv 
+
+kubectl apply -f my-nfs-pv.yaml
+
+
+sudo systemctl restart nfs-server
+
+sudo mount -t nfs 192.168.56.10:/shared/nfs /mnt
+
+kubectl get svc -n jhub proxy-public -o jsonpath='{.spec.ports[0].nodePort}'
+
+
+#helm command 
+kubectl get all --all-namespaces -l='app.kubernetes.io/managed-by=Helm'
+
+
+#docker for python server 
+sudo docker build -t hassanrehman1234/repo:latest .
+
+sudo docker push hassanrehman1234/repo:latest
+
+
+pythonserver
+helm install pythonserver1 ./chart
+helm upgrade pythonserver ./chart
+scp vagrant@192.168.56.10:~/.kube/config ~/.kube/config
+
+#link kubectl with local host 
+scp user@remote-server:/etc/kubernetes/admin.conf ~/.kube/config
+
+
+
+kubectl create serviceaccount <service-account-name>
+
+
+config.load_incluster_config()
+
+
+https://kodekloud.com/blog/kubectl-exec/
+
+
+ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+
+# Create the ~/.local/bin directory if it doesn't exist
+mkdir -p ~/.local/bin
+
+# Move the kubectl binary to ~/.local/bin
+mv kubectl ~/.local/bin/
+export PATH=$PATH:~/.local/bin
+echo 'export PATH=$PATH:~/.local/bin' >> ~/.bashrc
+
+
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+
+
+
+#################
+sudo docker build -t usmanf07/repo-python:latest .
+sudo docker push usmanf07/repo-python:latest
+helm install pythonserver ./chart
+
+
+
+###########################
+kubectl get secret --namespace graf grafana -o yaml
+
+echo “password_value” | openssl base64 -d ; echo
+
+echo “username_value” | openssl base64 -d ; echo
+
+
+kubectl expose service prometheus-server --type=NodePort --target-port=9090 --name=prometheus-server-ext -n prom
+
+kubectl expose service grafana --type=NodePort --target-port=3000 --name=grafana-ext -n prom
+

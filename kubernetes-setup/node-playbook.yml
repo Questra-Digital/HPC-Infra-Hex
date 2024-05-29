@@ -1,0 +1,150 @@
+---
+- hosts: all
+  become: true
+  tasks:
+  - name: Install necessary packages
+    apt:
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common 
+      - gnupg2
+      - net-tools
+      - containerd
+      - gnupg
+
+  - name: Remove swapfile from /etc/fstab
+    mount:
+      name: "{{ item }}"
+      fstype: swap
+      state: absent
+    with_items:
+      - swap
+      - none
+
+  - name: Disable swap
+    command: swapoff -a
+    when: ansible_swaptotal_mb > 0
+
+  - name: Ensure the Kubernetes apt keyring directory exists
+    become: yes
+    file:
+      path: /etc/apt/keyrings
+      state: directory
+      mode: '0755'
+
+  - name: Download and install the Kubernetes signing key
+    ansible.builtin.get_url:
+      url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+      dest: /tmp/kubernetes-release.key
+    register: download_key
+
+  - name: Add the Kubernetes signing key
+    ansible.builtin.shell:
+      cmd: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-release.key
+    when: download_key.changed
+
+  - name: Add the Kubernetes apt repository
+    ansible.builtin.apt_repository:
+      repo: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /'
+      filename: kubernetes.list
+      state: present
+
+  - name: Update the apt package index again
+    ansible.builtin.apt:
+      update_cache: yes
+
+  - name: Install kubelet, kubeadm, and kubectl
+    ansible.builtin.apt:
+      name:
+        - kubelet
+        - kubeadm
+        - kubectl
+      state: present
+      
+  - ansible.builtin.apt:
+      name: docker.io
+      state: present
+    name: Install Docker
+
+  - ansible.builtin.service:
+      name: docker
+      state: started
+    name: Ensure Docker service is started
+
+  - name: Mark kubelet, kubeadm, and kubectl to hold
+    ansible.builtin.apt:
+      name: "{{ item }}"
+      state: present
+      update_cache: no
+      dpkg_options: 'force-confold,force-confdef'
+    loop:
+      - kubelet
+      - kubeadm
+      - kubectl
+    notify: Hold kubelet, kubeadm, and kubectl
+
+  - name: Configure containerd
+    blockinfile:
+      create: true
+      path: /etc/modules-load.d/containerd.conf
+      block: |
+        overlay
+        br_netfilter
+
+  - name: Enable kernel modules
+    shell: |
+      modprobe overlay
+      modprobe br_netfilter
+
+  - name: Configure IP forwarding and iptables
+    blockinfile:
+      create: true
+      path: /etc/sysctl.conf
+      block: |
+        net.bridge.bridge-nf-call-iptables = 1
+        net.ipv4.ip_forward = 1
+
+  - name: Persist changes
+    command: sysctl -p
+
+  - name: Get IP eth1 addr
+    shell: ifconfig eth1 | grep 'inet' | cut -d{{':'}} -f2 | awk '{ print $2 }'
+    register: output
+
+  - name: Configure kubelet
+    lineinfile:
+      path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+      line: Environment="KUBELET_EXTRA_ARGS=--node-ip={{ output.stdout }}"
+
+  - name: Copy the join command to server location
+    copy: src=join-command dest=/tmp/join-command.sh mode=0777
+
+  - name: Join the node to cluster
+    command: sh /tmp/join-command.sh
+    
+  - name: Install NFS common package
+    apt:
+      name: nfs-common
+      state: present
+      update_cache: yes
+
+  - name: Create mount directory
+    file:
+      path: /mnt/nfs
+      state: directory
+
+  - name: Mount NFS share
+    mount:
+      src: 192.168.56.10:/shared/nfs
+      path: /mnt/nfs
+      fstype: nfs
+      opts: defaults
+      state: mounted   
+    
+ 

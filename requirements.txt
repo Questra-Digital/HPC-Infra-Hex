@@ -1,0 +1,8 @@
+Flask==3.0.0
+requests>=2.26.0,<3.0
+kubernetes
+pymongo
+pyyaml
+pyhelm3 @git+https://github.com/stackhpc/pyhelm3.git
+pydantic>=1.8.0
+Flask-Cors
