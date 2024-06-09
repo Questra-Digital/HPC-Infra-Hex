@@ -207,7 +207,6 @@ def create_persistent_volume(namespace, file_name):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/create-jupyterhub', methods=['GET'])
 def create_jupyterhub():
     try:
@@ -279,7 +278,6 @@ def get_pods_in_namespace(namespace):
     except Exception as e:
         return {"error": str(e)}
 
-
 @app.route('/get-pods/<namespace>', methods=['GET'])
 def get_pods(namespace):
     try:
@@ -292,9 +290,6 @@ def get_pods(namespace):
         return jsonify({"pods": pod_list})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-
 
 def get_proxy_public_node_port(namespace):
     try:
@@ -345,8 +340,6 @@ def pod_exec(name, namespace, command,tool_name):
         stdout = resp.read_stdout() or ""
         stderr = resp.read_stderr() or ""
         output[tool_name] += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
-
-
 
 @app.route('/execute-command')
 def execute_command(command,tool_name):

@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 CORS(app)
 # MongoDB connection
-cliente = MongoClient('mongodb+srv://orthoimplantsgu:pakistan@cluster0.eegqz25.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
+cliente = MongoClient('mongodb://orthoimplantsgu:pakistan@ac-cpo8knv-shard-00-00.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-01.eegqz25.mongodb.net:27017,ac-cpo8knv-shard-00-02.eegqz25.mongodb.net:27017/?ssl=true&replicaSet=atlas-4i34th-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0')
 db = cliente['kubernetes_db']
 
 # Kubernetes API client
@@ -66,7 +66,6 @@ def update_current_node():
                 break
     except Exception as e:
         print(f"Error updating current node: {e}")
-
 
 @app.route('/')
 def hello():
@@ -136,6 +135,69 @@ def insert_modal_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Endpoint to login for the user
+@app.route('/login', methods=['POST'])
+def login_user():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+
+
+        # Accessing the 'users' collection
+        collection = db['roles']
+
+        # Find the user with the given username
+        user = collection.find_one({"username": username})
+
+        if user:
+            role = user.get('role')
+            # Check user's role
+            if role in ['admin', 'root', 'simple user']:
+                # Authenticate the user based on the role
+                if user['password'] == password:
+                    return jsonify({"username": username, "role": role}), 200
+                else:
+                    return jsonify({"error": "Invalid password"}), 401
+            else:
+                return jsonify({"error": "Invalid role"}), 401
+        else:
+            return jsonify({"error": "User not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Endpoint to add a new user
+@app.route('/add-user', methods=['POST'])
+def add_user():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        role = data.get('role')
+
+        # Accessing the 'roles' collection
+        collection = db['roles']
+
+        # Check if the user already exists
+        existing_user = collection.find_one({"username": username})
+        if existing_user:
+            return jsonify({"error": "User already exists"}), 400
+
+        # Insert the new user into the collection
+        new_user = {
+            "username": username,
+            "password": password,
+            "email": email,
+            "role": role
+        }
+        collection.insert_one(new_user)
+        
+        return jsonify({"message": "User added successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 # Endpoint to retrieve all files from the MongoDB collection
 @app.route('/files', methods=['GET'])
 def get_files():
@@ -546,8 +608,6 @@ def pod_exec(name, namespace, command,tool_name):
         stdout = resp.read_stdout() or ""
         stderr = resp.read_stderr() or ""
         output[tool_name] += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
-
-
 
 @app.route('/execute-command')
 def execute_command(command,tool_name):

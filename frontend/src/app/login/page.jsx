@@ -2,25 +2,62 @@
 "use client"
 import React from 'react';
 import MainNavbar from '../Components/Shared/MainNavbar';
+import axios from 'axios';
+import API_BASE_URL from '../URL';
+
+
+const User_Login = async (username, password) => {
+  try {
+    // Make a POST request to the login endpoint
+    const response = await axios.post(`${API_BASE_URL}/login`, { username, password });
+    console.log(JSON.stringify(response.data.role));
+
+    // Check if login was successful
+    if (response && response.status === 200) {
+     
+      if(response.data.role == 'admin'){
+        
+      }else if(response.data.role == 'root'){
+
+      }else{
+
+      }
+    } 
+    else {
+      // Handle failed login
+      console.error('Error: Login failed');
+    }
+  } catch (error) {
+    console.error('Error login user:', error);
+  }
+};
+
 
 const Login = () => {
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const username = event.target.elements.username.value;
+    const password = event.target.elements.password.value;
+    User_Login(username, password);
+  };
+
   return (
-    <div className="bg-[#132577] h-screen flex flex-col items-center text-white">
+   <div className="bg-[#132577] w-full h-screen flex flex-col items-center text-white">
       <MainNavbar className="w-full flex-1" title="HPC MLOPs Infrastructure" />
-      <div className="h-full flex flex-col gap-20 md:flex-row items-center justify-center w-full md:py-4 md:px-24 lg:px-32">
-        <form className="flex-1 w-full md:w-1/2 p-12 md:px-0 mb-4 md:mb-0 md:mr-4">
+      <div className="h-full flex flex-col gap-20 md:flex-row items-center  w-[70%]">
+        <form className="flex-1" onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-sm font-semibold mb-2">Username:</label>
-            <input type="text" className="w-full px-4 py-2 rounded border border-white" />
+            <input name="username" type="text" className="w-full p-4 text-black rounded border border-white" />
           </div>
           <div className="mb-4">
             <label className="block text-sm font-semibold mb-2">Password:</label>
-            <input type="password" className="w-full px-4 py-2 rounded border border-white" />
+            <input name="password" type="password" className="w-full p-4 text-black rounded border border-white" />
           </div>
           <div className="mt-8">
-            <button className="w-full bg-white font-bold text-[#132577] px-4 py-3 rounded">Login</button>
+            <button type="submit" className="w-full bg-white font-bold text-[#132577] p-4 rounded">Login</button>
           </div>
-          
         </form>
 
         {/* Big SVG on the right side */}
