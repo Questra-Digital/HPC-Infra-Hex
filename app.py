@@ -372,15 +372,15 @@ def create_binderhub():
 def create_jupyterhub():
     try:
        
-        pv_file_name = "my-nfs-pv.yaml"
+        pv_file_name = "bhub_pv.yaml"
         result = get_file_content(pv_file_name)
 
         if result.status_code != 200:
             return result
 
         valuefile = "values.yaml"
-        result = get_file_content(pv_file_name)
-
+        result = get_file_content(valuefile)
+        print(result)
         if result.status_code != 200:
 
             return result
@@ -395,7 +395,7 @@ def create_jupyterhub():
 
         # Step 3: Call create_persistent_volume() for the second time with the same file
         result2 = create_persistent_volume(namespace, pv_file_name)
-
+        print(result2)
         if result2.status_code != 200:
             # Return error response if PV creation failed
             return result2
