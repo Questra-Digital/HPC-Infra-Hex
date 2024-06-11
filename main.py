@@ -924,6 +924,28 @@ def get_queue():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Endpoint to fetch a username by user ID
+@app.route('/get-username/<user_id>', methods=['GET'])
+def get_username(user_id):
+    try:
+        # Convert user_id to ObjectId if necessary
+        if ObjectId.is_valid(user_id):
+            user_id = ObjectId(user_id)
+        else:
+            return jsonify({"error": "Invalid user ID format"}), 400
+
+        # Accessing the 'roles' collection
+        collection = db['roles']
+
+        # Find the user by user_id
+        user = collection.find_one({"_id": user_id}, {"_id": 0, "username": 1})
+
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify({"username": user['username']}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def check_user_status(tool_info, user_id):
     current_queue = tool_info.get('queue', [])
@@ -1003,7 +1025,6 @@ def add_to_queue():
         return jsonify({"error": str(e)}), 500
 
 
-
 @app.route('/remove-from-queue', methods=['POST'])
 def remove_from_queue():
     try:
@@ -1036,7 +1057,6 @@ def remove_from_queue():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 
 def list_available_or_released_pvs():
