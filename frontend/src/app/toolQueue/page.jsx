@@ -102,23 +102,24 @@ const ToolsQueue = () => {
       <div className='mt-10 flex-1 text-[#132577] text-xl font-bold'>
         Tools Queue - {name}
       </div>
+      
       {queueLimit !== null && (
-        <div className="flex items-center justify-center bg-[#132577] text-white w-[25%] p-4 my-5 rounded-lg">
+        <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 my-5 rounded-lg">
           {isEditing ? (
             <div className="flex items-center">
-              <span className="text-lg font-semibold">Queue Limit:</span>
+              <span className="text-md font-semibold">Queue Limit:</span>
               <input
                 type="number"
                 value={newQueueLimit}
                 onChange={handleQueueLimitChange}
                 onKeyPress={handleKeyPress}
                 onBlur={handleBlur}
-                className="text-white font-bold bg-[#132577] w-20 p-2 ml-2 rounded border-none outline-none focus:ring-0"
+                className="text-white font-semibold bg-[#132577] w-20 p-2 ml-2 rounded border-none outline-none focus:ring-0"
               />
             </div>
           ) : (
             <div className="flex items-center">
-              <span className="text-lg font-semibold">Queue Limit: {queueLimit}</span>
+              <span className="text-md font-semibold">Queue Limit: {queueLimit}</span>
               {(role === 'admin' || role === 'root') && (
                 <button onClick={() => setIsEditing(true)} className="ml-2">
                   <FiEdit3 className="text-white" />
@@ -128,6 +129,12 @@ const ToolsQueue = () => {
           )}
         </div>
       )}
+
+      <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4  rounded-lg">
+        <button className="text-md font-semibold">
+          Use Tool
+        </button>
+      </div>
       <div className="bg-[#132577] m-[5%] py-[0%] px-[5%] h-[100%] flex flex-col gap-10 md:flex-row items-center w-[80%]">
         <div className='flex flex-col p-10 items-center text-center h-full w-full rounded-2xl bg-white text-[#132577]'>
           <h2 className="text-2xl font-bold">Running Queue</h2>
