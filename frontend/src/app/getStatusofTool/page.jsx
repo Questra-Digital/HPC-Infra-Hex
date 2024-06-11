@@ -152,7 +152,7 @@ const getStatus = () => {
               className="hover:bg-[#33469e] flex w-full font-bold bg-[#132577] rounded mt-4 text-white p-4 px-6"
               onMouseEnter={(e) => { e.target.style.cursor = 'pointer'; }} // Show hand cursor on hover
               onMouseLeave={(e) => { e.target.style.cursor = 'auto'; }}
-              disabled={!allPodsRunning}
+              // disabled={!allPodsRunning}
             >
               View Queue
             </button>
@@ -178,7 +178,7 @@ const getStatus = () => {
         </div>
       </div>     
      
-      {/* <Footer /> */}
+      <Footer />
     </div>
   );
 };

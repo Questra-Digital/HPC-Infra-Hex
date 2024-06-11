@@ -69,7 +69,7 @@ hub:
         - ReadWriteOnce
       storage: 1Gi
       subPath:
-      storageClassName: nfs-storage-class
+      storageClassName: 
     url:
     password:
   labels: {}

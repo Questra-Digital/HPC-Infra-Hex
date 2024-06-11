@@ -156,6 +156,7 @@ def login_user():
             if role in ['admin', 'root', 'simple user']:
                 # Authenticate the user based on the role
                 if user['password'] == password:
+                    
                     return jsonify({"username": username, "role": role}), 200
                 else:
                     return jsonify({"error": "Invalid password"}), 401

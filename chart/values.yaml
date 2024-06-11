@@ -1,10 +1,10 @@
 replicaCount: 1
 
 image:
-  repository: usmanf07/repo-python
+  repository: fatimasiddiqui1048/repo
 
   pullPolicy: Always
-  tag: "latest"
+  tag: "latest1"
 
 imagePullSecrets: []
 

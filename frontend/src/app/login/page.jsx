@@ -14,8 +14,11 @@ const User_Login = async (username, password) => {
 
     // Check if login was successful
     if (response && response.status === 200) {
+      sessionStorage.setItem("user_role", response.data.role);
+      sessionStorage.setItem("user_id", response.data.user_id);
      
       if(response.data.role == 'admin'){
+        
         
       }else if(response.data.role == 'root'){
 
