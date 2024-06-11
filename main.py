@@ -4,6 +4,7 @@ import yaml
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 import uuid
+import time
 import subprocess
 import threading
 import asyncio
@@ -26,7 +27,19 @@ Coreapi = client.CoreV1Api()
 current_node = None
 output = {}
 
+@app.route('/reset-installed', methods=['GET'])
+def reset_installed():
+    try:
+        # Accessing the 'tools' collection
+        collection = db['tools']
 
+        # Update all documents in the collection, setting 'installed' to false
+        collection.update_many({}, {"$set": {"installed": "false"}})
+
+        return jsonify({"message": "All tools' 'installed' status reset to false successfully."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.route('/tools', methods=['GET'])
 def get_tools():
     try:
@@ -39,6 +52,25 @@ def get_tools():
         return jsonify(tools)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/get-tool-id/<tool_name>', methods=['GET'])
+def get_tool_id(tool_name):
+    try:
+        # Accessing the 'tools' collection
+        collection = db['tools']
+
+        # Find the tool with the specified name
+        tool = collection.find_one({"tool_name": tool_name})
+        print(tool_name)
+        if tool is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        # Return the tool ID
+        return jsonify({"tool_id": str(tool['_id'])}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # Function to update current_node based on pods in default namespace
 def update_current_node():
     global current_node
@@ -53,7 +85,6 @@ def update_current_node():
                 break
     except Exception as e:
         print(f"Error updating current node: {e}")
-
 
 @app.route('/')
 def hello():
@@ -123,6 +154,87 @@ def insert_modal_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Endpoint to login for the user
+@app.route('/login', methods=['POST'])
+def login_user():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+
+
+        # Accessing the 'users' collection
+        collection = db['roles']
+
+        # Find the user with the given username
+        user = collection.find_one({"username": username})
+
+        if user:
+            role = user.get('role')
+            # Check user's role
+            if role in ['admin', 'root', 'simple user']:
+                # Authenticate the user based on the role
+                if user['password'] == password:
+                     user_id = str(user.get('_id'))  # Extract and convert _id to string
+                     print(user_id)
+                     return jsonify({"user_id": user_id, "username": username, "role": role}), 200
+                else:
+                    return jsonify({"error": "Invalid password"}), 401
+            else:
+                return jsonify({"error": "Invalid role"}), 401
+        else:
+            return jsonify({"error": "User not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Get All the users from database
+
+@app.route('/users', methods=['GET'])
+def get_all_users():
+    try:
+        # Accessing the 'roles' collection
+        collection = db['roles']
+
+        # Find all users in the collection
+        users = list(collection.find({}, {"_id": 0, "username": 1, "role": 1}))
+
+        # Return the list of users
+        return jsonify({"users": users}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Endpoint to add a new user
+@app.route('/add-user', methods=['POST'])
+def add_user():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        role = data.get('role')
+
+        # Accessing the 'roles' collection
+        collection = db['roles']
+
+        # Check if the user already exists
+        existing_user = collection.find_one({"username": username})
+        if existing_user:
+            return jsonify({"error": "User already exists"}), 400
+
+        # Insert the new user into the collection
+        new_user = {
+            "username": username,
+            "password": password,
+            "email": email,
+            "role": role
+        }
+        collection.insert_one(new_user)
+        
+        return jsonify({"message": "User added successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 # Endpoint to retrieve all files from the MongoDB collection
 @app.route('/files', methods=['GET'])
 def get_files():
@@ -146,7 +258,7 @@ def get_file_content(file_name):
 
         # Find the document with the given file name
         file_data = collection.find_one({"file_name": file_name})
-
+        # print(file_data)
         if file_data:
             # Write the file content to a new file
             with open(file_name, "w") as file:
@@ -178,15 +290,17 @@ def apply_kubernetes_config(namespace, file_name):
 
 # Endpoint to create PersistentVolume (PV) using Kubernetes Python client
 
-@app.route('/createpv/<namespace>/<file_name>', methods=['GET'])
-def create_persistent_volume(namespace, file_name):
+def create_persistent_volume(namespace, file_name, custom_pv_name=None):
     try:
         # Read the YAML file content
         with open(file_name, 'r') as file:
             body = yaml.safe_load(file)
 
-        # Generate a unique name for the PV
-        pv_name = f"{body['metadata']['name']}-{str(uuid.uuid4())[:8]}"
+        # Generate a unique name for the PV if no custom name is provided
+        if custom_pv_name:
+            pv_name = f"{custom_pv_name}-{str(uuid.uuid4())[:8]}"
+        else:
+            pv_name = f"{body['metadata']['name']}-{str(uuid.uuid4())[:8]}"
 
         # Update the PV name in the YAML body
         body['metadata']['name'] = pv_name
@@ -197,35 +311,94 @@ def create_persistent_volume(namespace, file_name):
         # Create the PersistentVolume in the specified namespace
         pv_api.create_persistent_volume(body=body)
 
-        return jsonify({"message": f"Created PersistentVolume '{pv_name}' from '{file_name}' in namespace '{namespace}'"})
+        return {"message": f"Created PersistentVolume '{pv_name}' from '{file_name}' in namespace '{namespace}'"}
     except FileNotFoundError:
-        return jsonify({"error": "File not found."}), 404
+        return {"error": "File not found."}, 404
     except yaml.YAMLError as e:
-        return jsonify({"error": f"YAML syntax error: {str(e)}"}), 400
+        return {"error": f"YAML syntax error: {str(e)}"}, 400
     except ApiException as e:
-        return jsonify({"error": f"Kubernetes API error: {e.reason}"}), 500
+        return {"error": f"Kubernetes API error: {e.reason}"}, 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return {"error": str(e)}, 500
 
 
-@app.route('/create-jupyterhub', methods=['GET'])
-def create_jupyterhub():
+def create_config_yaml(image_prefix, hub_url):
+    data = {
+        'config': {
+            'BinderHub': {
+                'use_registry': True,
+                'image_prefix': image_prefix
+            }
+        }
+    }
+    if hub_url:
+        data['config']['BinderHub']['hub_url'] = hub_url
+    return yaml.dump(data)
+  
+def create_secret_yaml(username, password):
+    data = {
+        'registry': {
+            'username': username,
+            'password': password
+        }
+    }
+    return yaml.dump(data)
+
+
+def bind_binderhub():
+  try:
+      print("BIND CALLED")
+      jhub_tool = get_proxy_public_node_port("bhub")
+      ip_address = "http://192.168.56.10:"
+      port = jhub_tool["node_port"]
+      config_yaml_content = create_config_yaml("usmanf07/binderhub-", ip_address + str(port))
+
+      # Write YAML content to secret.yaml
+      with open('config.yaml', 'w') as file:
+          file.write(config_yaml_content)
+
+      tool_name = "BinderHub"
+      collection = db['tools']
+      binder_tool = collection.find_one({"tool_name": tool_name})
+      helm_command = ""
+      if binder_tool:
+          helm_command = binder_tool.get("helm_command")
+          helm_command = helm_command.replace("install", "upgrade", 1)
+          resultfinal =  execute_command(helm_command, tool_name)
+          print(resultfinal)
+          return f"ok"
+      
+  except Exception as e:
+      return {"error": f"An error occurred: {e}"}, 500
+
+@app.route('/create-grafana', methods=['GET'])
+def create_grafana():
     try:
-       
-        pv_file_name = "my-nfs-pv.yaml"
+        tool_name = "Grafana"
+        collection = db['tools']
+        grafana_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if grafana_tool:
+            execute_command("helm install grafana grafana/grafana --namespace=graf",tool_name)
+            collection.update_one(
+                {"tool_name": tool_name},
+                {"$set": {"installed": "true"}}
+            )
+            
+            return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+    
+@app.route('/create-prometheus', methods=['GET'])
+def create_prometheus():
+    try:
+        pv_file_name = "prom_pv.yaml"
         result = get_file_content(pv_file_name)
 
-        if result.status_code != 200:
-            return result
-
-        valuefile = "values.yaml"
+        pvv_file_name = "prom_pvv.yaml"
         result = get_file_content(pv_file_name)
 
-        if result.status_code != 200:
-
-            return result
-
-        # Step 2: Call create_persistent_volume() for the first time with the same file
         namespace = "default"
         result1 = create_persistent_volume(namespace, pv_file_name)
 
@@ -235,10 +408,99 @@ def create_jupyterhub():
 
         # Step 3: Call create_persistent_volume() for the second time with the same file
         result2 = create_persistent_volume(namespace, pv_file_name)
+        
+        tool_name = "Prometheus"
+        collection = db['tools']
+        prom_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if prom_tool:
+            execute_command("helm install prometheus prometheus-community/prometheus --namespace=prom",tool_name)
+            collection.update_one(
+                {"tool_name": tool_name},
+                {"$set": {"installed": "true"}}
+            )
+            
+            return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+    
+@app.route('/create-binderhub', methods=['GET'])
+def create_binderhub():
+    try:
+        pv_file_name = "bhub_pv.yaml"
+        pv_result = get_file_content(pv_file_name)
 
-        if result2.status_code != 200:
+        
+        namespace = "bhub"
+        result1 = create_persistent_volume(namespace, pv_file_name)
+
+        secret_yaml_content = create_secret_yaml("usmanf07", "Virus@123")
+
+        # Write YAML content to secret.yaml
+        with open('secret.yaml', 'w') as file:
+            file.write(secret_yaml_content)
+
+        config_yaml_content = create_config_yaml("usmanf07/binderhub-", "")
+
+        # Write YAML content to secret.yaml
+        with open('config.yaml', 'w') as file:
+            file.write(config_yaml_content)
+        
+        #execute_command("helm repo add jupyterhub https://jupyterhub.github.io/helm-chart") 
+        #execute_command("helm repo update")
+
+        tool_name = "BinderHub"
+        collection = db['tools']
+        binder_tool = collection.find_one({"tool_name": tool_name})
+        helm_command = ""
+        if binder_tool:
+            helm_command = binder_tool.get("helm_command")
+
+            resultfinal =  execute_command(helm_command, tool_name)
+            collection.update_one(
+                {"tool_name": tool_name},
+                {"$set": {"installed": "true"}}
+            )
+            time.sleep(10)
+            bind_binderhub()
+            #time.sleep(1)
+            return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
+    
+    except Exception as e:
+      return jsonify({"error": f"An error occurred: {e}"}), 500
+   
+@app.route('/create-jupyterhub', methods=['GET'])
+def create_jupyterhub():
+    try:
+       
+        pv_file_name = "bhub_pv.yaml"
+        result = get_file_content(pv_file_name)
+
+        # if result.status_code != 200:
+            # return result
+
+        valuefile = "values.yaml"
+        result = get_file_content(valuefile)
+        print(result)
+        # if result.status_code != 200:
+
+            # return result
+
+        # Step 2: Call create_persistent_volume() for the first time with the same file
+        namespace = "default"
+        result1 = create_persistent_volume(namespace, pv_file_name)
+
+        # if result1.status_code != 200:
             # Return error response if PV creation failed
-            return result2
+            # return result1
+
+        # Step 3: Call create_persistent_volume() for the second time with the same file
+        result2 = create_persistent_volume(namespace, pv_file_name)
+        print(result2)
+        # if result2.status_code != 200:
+            # Return error response if PV creation failed
+            # return result2
 
         # Step 4: Retrieve JupyterHub tool information from MongoDB
         tool_name = "JupyterHub"
@@ -253,11 +515,20 @@ def create_jupyterhub():
             {"tool_name": tool_name},
             {"$set": {"installed": "true"}}
         )
+
         return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
         return jsonify({"error": f"An error occurred: {e}"}), 500
 
+@app.route('/count-pods/<namespace>', methods=['GET'])
+def count_running_pods(namespace):
+    pods = get_pods_in_namespace(namespace)
+    total_pods = len(pods)
+    running_pods = sum(1 for pod in pods if pod["status"] == "Running")
+    return f"{running_pods}/{total_pods}"
+ 
+@app.route('/get-pods/<namespace>', methods=['GET'])
 def get_pods_in_namespace(namespace):
     try:
         # Create Kubernetes API client
@@ -294,20 +565,52 @@ def get_pods(namespace):
         return jsonify({"error": str(e)}), 500
 
 
-
-
-def get_proxy_public_node_port(namespace):
+@app.route('/get-service-port/<namespace>/<service>', methods=['GET'])
+def get_service_port(namespace, service):
     try:
-        
+        # Load Kubernetes configuration from default location
+       
+
+        # Create a Kubernetes API client
         v1 = client.CoreV1Api()
-        service_name = "proxy-public"
+
+        # Define the service name
+        service_name = service
+
+        # Get the service details
         service = v1.read_namespaced_service(service_name, namespace)
+
+        # Get the NodePort
         node_port = service.spec.ports[0].node_port
+
         return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
 
     except Exception as e:
         return {"error": str(e)}
 
+@app.route('/get-proxy/<namespace>', methods=['GET'])
+def get_proxy_public_node_port(namespace):
+    try:
+        # Load Kubernetes configuration from default location
+       
+
+        # Create a Kubernetes API client
+        v1 = client.CoreV1Api()
+
+        # Define the service name
+        service_name = "proxy-public"
+
+        # Get the service details
+        service = v1.read_namespaced_service(service_name, namespace)
+
+        # Get the NodePort
+        node_port = service.spec.ports[0].node_port
+
+        return {"namespace": namespace, "service_name": service_name, "node_port": node_port}
+
+    except Exception as e:
+        return {"error": str(e)}
+    
 @app.route('/get-node-port/<namespace>', methods=['GET'])
 def get_node_port(namespace):
     try:
@@ -345,8 +648,6 @@ def pod_exec(name, namespace, command,tool_name):
         stdout = resp.read_stdout() or ""
         stderr = resp.read_stderr() or ""
         output[tool_name] += f"STDOUT: {stdout}\nSTDERR: {stderr}\n"
-
-
 
 @app.route('/execute-command')
 def execute_command(command,tool_name):
@@ -386,7 +687,7 @@ def delete_all_pvs():
         deleted_pvs = []
         for pv in pvs:
             # Check if PV status is "Available" or "Released"
-            if pv.status.phase in ["Available", "Released"]:
+            if pv.status.phase in [ "Available","Released"]:
                 # Delete the PV
                 try:
                     k8s.delete_persistent_volume(pv.metadata.name, body=client.V1DeleteOptions())
@@ -405,12 +706,420 @@ def delete_all_pvs():
 def install_tool(tool_name):
     if tool_name == "JupyterHub":
         return create_jupyterhub()
-    # Add more conditions for other tools as needed
+    elif tool_name == "BinderHub":
+        
+        return create_binderhub()
+    elif tool_name == "Prometheus":
+        
+        return create_prometheus()
+    elif tool_name == "Grafana":
+        
+        return create_grafana()
     else:
         return jsonify({"error": f"Installation for {tool_name} not implemented."}), 404
 
 
+#Tool Queue management 
+class ToolQueue:
+    def __init__(self, tool_id, queue_limit, queue=None, waiting_queue=None):
+        self.tool_id = tool_id
+        self.queue_limit = queue_limit
+        self.queue = queue if queue else []
+        self.waiting_queue = waiting_queue if waiting_queue else []
+
+    def to_dict(self):
+        return {
+            "tool_id": self.tool_id,
+            "queue_limit": self.queue_limit,
+            "queue": self.queue,
+            "waiting_queue": self.waiting_queue
+        }
+
+
+@app.route('/add-tools-to-queue', methods=['GET'])
+def add_tools_to_queue():
+    try:
+        # Accessing the 'tools' collection
+        collection = db['tools']
+
+        # Fetch all tools from the collection
+        tools = collection.find({}, {"_id": 1})
+
+        # Extract tool IDs from the tools
+        tool_ids = [tool["_id"] for tool in tools]
+
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+
+        # Add tool IDs to the tool queue with default values
+        for tool_id in tool_ids:
+            tool_queue_collection.insert_one({
+                "tool_id": tool_id,
+                "waiting_queue": [],
+                "queue": [],
+                "queue_limit": 0
+            })
+
+        return jsonify({"message": "Tools added to the queue successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+from bson import ObjectId
+
+@app.route('/set-queue-limit', methods=['POST'])
+def set_queue_limit():
+    try:
+        # Extract data from the POST request
+        data = request.json
+        tool_id_str = data.get('tool_id')
+        tool_id = ObjectId(tool_id_str)  # Convert string to ObjectId
+        print(tool_id)
+        queue_limit = data.get('queue_limit')
+
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})  # Use '_id' instead of 'tool_id'
+      
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        # Update the queue limit for the specified tool
+        tool_queue_collection.update_one(
+            {"tool_id": tool_id},
+            {"$set": {"queue_limit": queue_limit}}
+        )
+
+        return jsonify({"message": f"Queue limit set to {queue_limit} for tool {tool_id_str}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/get-queue-limit/<tool_id>', methods=['GET'])
+def get_queue_limit(tool_id):
+    try:
+        # Convert string to ObjectId
+        tool_id = ObjectId(tool_id)
+        
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+        
+        # Find the tool with the specified tool_id
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})
+        
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+        
+        # Extract the queue limit from the tool info
+        queue_limit = tool_info.get('queue_limit')
+        
+        return jsonify({"tool_id": str(tool_id), "queue_limit": queue_limit}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/add-to-waiting-list', methods=['POST'])
+def add_to_waiting_list():
+    try:
+        # Extract data from the POST request
+        data = request.json
+        user_id = data.get('user_id')
+        tool_id_str = data.get('tool_id')
+        tool_id = ObjectId(tool_id_str)  # Convert string to ObjectId
+
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})
+
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        # Check if user is already in the waiting list
+        if user_id in tool_info.get('waiting_queue', []):
+            return jsonify({"message": f"User {user_id} is already in the waiting list for tool {tool_id_str}"}), 200
+
+        # Add user to the waiting list for the specified tool
+        tool_queue_collection.update_one(
+            {"tool_id": tool_id},
+            {"$push": {"waiting_queue": user_id}}
+        )
+
+        return jsonify({"message": f"User {user_id} added to waiting list for tool {tool_id_str}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+#remove from waiting list
+from flask import request, jsonify
+
+@app.route('/remove-from-waiting-list', methods=['POST'])
+def remove_from_waiting_list():
+    try:
+        # Extract data from the POST request
+        data = request.json
+        user_id = data.get('user_id')
+        tool_id_str = data.get('tool_id')
+        tool_id = ObjectId(tool_id_str)  # Convert string to ObjectId
+
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})
+
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        # Check if user is in the waiting list
+        if user_id not in tool_info.get('waiting_queue', []):
+            return jsonify({"message": f"User {user_id} is not in the waiting list for tool {tool_id_str}"}), 200
+
+        # Remove user from the waiting list for the specified tool
+        tool_queue_collection.update_one(
+            {"tool_id": tool_id},
+            {"$pull": {"waiting_queue": user_id}}
+        )
+
+        return jsonify({"message": f"User {user_id} removed from waiting list for tool {tool_id_str}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/waiting-list', methods=['POST'])
+def get_waiting_list():
+    try:
+        # Extract tool_id from the query parameters
+        data = request.json
+        tool_id_str = data.get('tool_id')
+        tool_id = ObjectId(tool_id_str)  # Convert string to ObjectId
+
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})
+
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        # Get the waiting list for the specified tool
+        waiting_list = tool_info.get('waiting_queue', [])
+
+        return jsonify({"waiting_list": waiting_list}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/queue', methods=['POST'])
+def get_queue():
+    try:
+        # Extract data from the POST request
+        data = request.json
+        tool_id_str = data.get('tool_id')
+        tool_id = ObjectId(tool_id_str)  # Convert string to ObjectId
+
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})
+
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        # Get the current queue for the specified tool
+        queue = tool_info.get('queue', [])
+
+        return jsonify({"queue": queue}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Endpoint to fetch a username by user ID
+@app.route('/get-username/<user_id>', methods=['GET'])
+def get_username(user_id):
+    try:
+        # Convert user_id to ObjectId if necessary
+        if ObjectId.is_valid(user_id):
+            user_id = ObjectId(user_id)
+        else:
+            return jsonify({"error": "Invalid user ID format"}), 400
+
+        # Accessing the 'roles' collection
+        collection = db['roles']
+
+        # Find the user by user_id
+        user = collection.find_one({"_id": user_id}, {"_id": 0, "username": 1})
+
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify({"username": user['username']}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def check_user_status(tool_info, user_id):
+    current_queue = tool_info.get('queue', [])
+    waiting_queue = tool_info.get('waiting_queue', [])
+
+    if user_id in current_queue:
+        return {"message": f"User {user_id} is already in the queue", "queue_status": "In Queue"}
+    elif user_id in waiting_queue:
+        return {"message": f"User {user_id} is already in the waiting list", "queue_status": "In Waiting List"}
+
+    return None
+
+@app.route('/add-to-queue', methods=['POST'])
+def add_to_queue():
+    try:
+        # Extract data from the POST request
+        data = request.json
+        user_id = data.get('user_id')
+        tool_id_str = data.get('tool_id')
+        tool_id = ObjectId(tool_id_str)  # Convert string to ObjectId
+
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})
+
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        # Check if the user is already in any queue or waiting list
+        user_status = check_user_status(tool_info, user_id)
+        if user_status:
+            return jsonify(user_status), 200
+
+        # Get the queue limit for the specified tool
+        queue_limit = tool_info.get('queue_limit', 0)
+
+        # Check if the queue limit has been reached
+        if len(tool_info.get('queue', [])) < queue_limit:
+            # Add user to the queue for the specified tool
+            tool_queue_collection.update_one(
+                {"tool_id": tool_id},
+                {"$push": {"queue": user_id}}
+            )
+
+            # Retrieve service details from the 'tools' table
+            tool_details = db['tools'].find_one({"_id": tool_id})
+            if tool_details:
+                namespace = tool_details.get('namespace')
+                if namespace == "prom":
+                    pv_file_name = "prom_pv.yaml"
+                else:
+                    pv_file_name = "bhub_pv.yaml"
+              
+                # Call the create_persistent_volume function to create the PersistentVolume
+                result1 = create_persistent_volume(namespace, pv_file_name, user_id)
+                print(result1)
+                if "error" in result1:
+                    return jsonify({"error": result1["error"]}), 500
+
+                # Return success message along with service details
+                service_details = get_service_port(namespace, tool_details.get('service'))
+                return jsonify({
+                    "message": f"User {user_id} added to queue for tool {tool_id_str}",
+                    "queue_status": "In Queue",
+                    "service_details": service_details
+                }), 200
+            else:
+                return jsonify({"error": "Tool details not found"}), 404
+        else:
+            # Add user to the waiting list for the specified tool
+            tool_queue_collection.update_one(
+                {"tool_id": tool_id},
+                {"$push": {"waiting_queue": user_id}}
+            )
+            return jsonify({"message": f"User {user_id} added to waiting list for tool {tool_id_str}", "queue_status": "In Waiting List"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/remove-from-queue', methods=['POST'])
+def remove_from_queue():
+    try:
+        # Extract data from the POST request
+        data = request.json
+        user_id = data.get('user_id')
+        tool_id_str = data.get('tool_id')
+        tool_id = ObjectId(tool_id_str)  # Convert string to ObjectId
+
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})
+
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        # Get the current queue for the specified tool
+        queue = tool_info.get('queue', [])
+
+        # Check if the user is in the queue
+        if user_id in queue:
+            # Remove user from the queue for the specified tool
+            tool_queue_collection.update_one(
+                {"tool_id": tool_id},
+                {"$pull": {"queue": user_id}}
+            )
+            return jsonify({"message": f"User {user_id} removed from queue for tool {tool_id_str}"}), 200
+        else:
+            return jsonify({"message": f"User {user_id} is not in the queue for tool {tool_id_str}"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def list_available_or_released_pvs():
+    try:
+        # Load Kubernetes configuration from default location
+        config.load_kube_config()
+
+        # Create a Kubernetes API client
+        k8s = client.CoreV1Api()
+
+        # Get all PersistentVolumes
+        pvs = k8s.list_persistent_volume().items
+
+        # List to store names of available or released PVs
+        available_pvs = []
+
+        # Iterate through each PersistentVolume and check if it's available or released
+        for pv in pvs:
+            # Check if PV status is available or released
+            if pv.status.phase in ["Available", "Released"]:
+                available_pvs.append(pv.metadata.name)
+
+        return available_pvs
+
+    except Exception as e:
+        print("Error:", str(e))
+        return []
+
+from flask import jsonify
+
+@app.route('/remove-user-from-tool-queues', methods=['DELETE'])
+def remove_user_from_tool_queues_api():
+    try:
+        # Get the list of available or released persistent volumes
+        available_pvs = list_available_or_released_pvs()
+        
+        removed_pvs = []
+
+        # Iterate over each available PV
+        for pv_name in available_pvs:
+            # Extract user ID from the PV name
+            pv_user_id = pv_name.split('-')[0]
+            
+            # Remove the user from the queue of tools associated with the PV
+            for tool_id in db['toolQueue'].find():
+               
+                tool_pvs = tool_id.get('queue', [])
+                # print(tool_pvs)
+                
+                if pv_user_id in tool_pvs:
+                    removed_pvs.append(pv_name)
+                    # Remove the user from the tool queue
+                    db['toolQueue'].update_one(
+                        {"_id": tool_id["_id"]},
+                        {"$pull": {"queue": pv_user_id}}
+                    )
+        delete_all_pvs()
+        return jsonify({"removed_pvs": removed_pvs}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 if __name__ == "__main__":
-    app.run()
-
-
+    app.run(debug=True)
