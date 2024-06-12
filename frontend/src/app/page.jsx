@@ -8,12 +8,14 @@ import LandingPageProjects from '../app/Components/LandingPage/LandingPageProjec
 import CerifiedExperts from '../app/Components/LandingPage/CertifiedExperts';
 import Footer from '../app/Components/Footer';
 import MainNavbar from '../app/Components/Shared/MainNavbar';
+import Login from './login/page';
 
 const Home = () => {
 
   return (
     <div className="h-screen flex flex-col gap-[10%] items-center text-white w-screen">
-        <div className='flex-1'>
+      <Login/>
+        {/* <div className='flex-1'>
             <MainNavbar className="" title="HPC MLOPs Infrastructure" />
             <LandingPageHeader className=""  />
         </div>
@@ -22,7 +24,7 @@ const Home = () => {
         <FewWordsAboutUs className="flex-4" />
         <LandingPageProjects className="flex-5"/>
         <CerifiedExperts className="flex-6"/>
-        <Footer className="flex-7"/>
+        <Footer className="flex-7"/> */}
     </div>
    
   );
