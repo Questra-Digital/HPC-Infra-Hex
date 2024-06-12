@@ -1022,6 +1022,7 @@ def add_to_queue():
             )
             return jsonify({"message": f"User {user_id} added to waiting list for tool {tool_id_str}", "queue_status": "In Waiting List"}), 200
     except Exception as e:
+        print(e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -1118,6 +1119,48 @@ def remove_user_from_tool_queues_api():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+
+        # Remove user from all tool queues and waiting lists
+        remove_user_from_all_queues(user_id)
+        delete_all_pvs()
+        return jsonify({"message": f"User {user_id} has been removed from all queues"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def remove_user_from_all_queues(user_id):
+    # Find all tools in the toolQueue collection
+    tool_queue_collection = db['toolQueue']
+    tools = tool_queue_collection.find()
+
+    for tool in tools:
+        tool_id = tool.get('tool_id')
+
+        # Remove user from queue
+        tool_queue_collection.update_one(
+            {"tool_id": tool_id},
+            {"$pull": {"queue": user_id}}
+        )
+
+        # Remove user from waiting list
+        tool_queue_collection.update_one(
+            {"tool_id": tool_id},
+            {"$pull": {"waiting_queue": user_id}}
+        )
+
+
+
 
 
 
