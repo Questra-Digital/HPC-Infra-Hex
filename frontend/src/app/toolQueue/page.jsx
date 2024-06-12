@@ -3,10 +3,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSearchParams } from 'next/navigation';
 import MainNavbar from '../Components/Shared/MainNavbar';
-import Footer from '../Components/Footer';
+import Swal from 'sweetalert2'; // Import SweetAlert
 import API_BASE_URL from '../URL';
 import { FiEdit3 } from 'react-icons/fi'; // Importing an edit icon
-import Swal from 'sweetalert2'; // Import SweetAlert
 
 const ToolsQueue = () => {
   const [runningQueue, setRunningQueue] = useState([]);
@@ -15,41 +14,52 @@ const ToolsQueue = () => {
   const [isEditing, setIsEditing] = useState(false); // State to manage edit mode
   const [newQueueLimit, setNewQueueLimit] = useState(null); // State to store the new queue limit input
   const [role, setRole] = useState(null); // State to store user role
+  const [showRunToolButton, setShowRunToolButton] = useState(false); // State to toggle showing "Run Tool" button
   const searchParams = useSearchParams();
   const name = searchParams.get("name");
   const id = searchParams.get("id");
   const [queueKey, setQueueKey] = useState(0);
+
   useEffect(() => {
     // Retrieve the user role from session storage
     const userRole = sessionStorage.getItem('user_role');
     setRole(userRole);
-
+  
     const fetchToolIdAndQueues = async () => {
       try {
-        // Fetch the tool ID based on the tool name
-       
-       
-
         // Fetch the queue limit using the tool ID
         const queueLimitResponse = await axios.get(`${API_BASE_URL}/get-queue-limit/${id}`);
         setQueueLimit(queueLimitResponse.data.queue_limit);
         setNewQueueLimit(queueLimitResponse.data.queue_limit); // Set the newQueueLimit to the initial queueLimit
-
+  
         // Fetch the running queue using the tool ID
         const runningQueueResponse = await axios.post(`${API_BASE_URL}/queue`, { tool_id: id });
-        console.log("runningQueueResponse", runningQueueResponse.data.queue);
         setRunningQueue(runningQueueResponse.data.queue);
-
+  
         // Fetch the waiting queue using the tool ID
         const waitingQueueResponse = await axios.post(`${API_BASE_URL}/waiting-list`, { tool_id: id });
         setWaitingQueue(waitingQueueResponse.data.waiting_list);
+  
+        // Check if user is in the queue every 5 seconds if showRunToolButton is false
+        if (!showRunToolButton) {
+          const interval = setInterval(() => {
+            checkUserInQueue();
+          }, 10000);
+        }
+        else{
+          clearInterval(interval)
+        }
+          // Clean up interval on component unmount or when showRunToolButton becomes true
+        return () => clearInterval(interval);
+        
       } catch (error) {
         console.error('Error fetching tool ID or queues:', error);
       }
     };
-
+  
     fetchToolIdAndQueues();
-  }, [name,queueKey]);
+  }, [name, showRunToolButton,queueKey]); // Include showRunToolButton in dependency array
+  
 
   const handleQueueLimitChange = (e) => {
     setNewQueueLimit(e.target.value);
@@ -63,7 +73,6 @@ const ToolsQueue = () => {
 
   const updateQueueLimit = async () => {
     try {
-      
       const toolId = id;
 
       await axios.post(`${API_BASE_URL}/set-queue-limit`, {
@@ -90,14 +99,8 @@ const ToolsQueue = () => {
   };
 
   const handleBlur = async () => {
-    // if (newQueueLimit !== queueLimit) {
-    //   updateQueueLimit();
-    // } else {
-      setIsEditing(false); // Exit edit mode if no changes were made
-    // }
+    setIsEditing(false); // Exit edit mode if no changes were made
   };
-
-
 
   const handleUseTool = async () => {
     try {
@@ -105,11 +108,9 @@ const ToolsQueue = () => {
         user_id: sessionStorage.getItem('user_id'),
         tool_id: id,
       });
-      // Update running queue based on the response
       setRunningQueue(response.data.Queue || []);
-      
-      // Update waiting queue based on the response
       setWaitingQueue(response.data.waiting || []);
+
       setQueueKey(prevKey => prevKey + 1);
       // Show success message
       Swal.fire({
@@ -128,10 +129,18 @@ const ToolsQueue = () => {
     }
   };
 
-  useEffect(() => {
-    console.log(waitingQueue)
-  },
-  [runningQueue]);
+  const checkUserInQueue = async () => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/check-and-move-user`, {
+        user_id: sessionStorage.getItem('user_id'),
+        tool_id: id,
+      });
+      setShowRunToolButton(response.data.user_in_queue);
+    } catch (error) {
+      console.error('Error checking user in queue:', error);
+    }
+  };
+
   return (
     <div className="flex h-screen flex-col items-center text-white w-screen">
       <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" />
@@ -140,7 +149,7 @@ const ToolsQueue = () => {
       </div>
       
       {queueLimit !== null && (
-        <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 my-5 rounded-lg">
+        <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 my-0 rounded-lg">
           {isEditing ? (
             <div className="flex items-center">
               <span className="text-md font-semibold">Queue Limit:</span>
@@ -166,11 +175,24 @@ const ToolsQueue = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4  rounded-lg">
-        <button className="text-md font-semibold" onClick={handleUseTool}>
-          Use Tool
+       (
+        <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4  rounded-lg">
+          <button className="text-md font-semibold" onClick={handleUseTool}>
+            Add to Queue
+          </button>
+        </div>
+      )
+
+      {showRunToolButton && (
+        <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4  rounded-lg">
+        <button className="text-md font-semibold">
+          Run Tool 
         </button>
+        
       </div>
+
+      )
+      }
       <div className="bg-[#132577] m-[5%] py-[0%] px-[5%] h-[100%] flex flex-col gap-10 md:flex-row items-center w-[80%]">
         <div className='flex flex-col p-10 items-center text-center h-full w-full rounded-2xl bg-white text-[#132577]'>
           <h2 className="text-2xl font-bold">Running Queue</h2>

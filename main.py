@@ -403,9 +403,9 @@ def create_prometheus():
         namespace = "default"
         result1 = create_persistent_volume(namespace, pv_file_name)
 
-        if result1.status_code != 200:
-            # Return error response if PV creation failed
-            return result1
+        # if result1.status_code != 200:
+        #     # Return error response if PV creation failed
+        #     return result1
 
         # Step 3: Call create_persistent_volume() for the second time with the same file
         result2 = create_persistent_volume(namespace, pv_file_name)
@@ -414,6 +414,11 @@ def create_prometheus():
         collection = db['tools']
         prom_tool = collection.find_one({"tool_name": tool_name})
         helm_command = ""
+        namespace = "prom"
+        command = f"kubectl create namespace {namespace}"
+        result = execute_command(command,"Prometheus")
+        # if result.get('error'):
+        #     return {"error": result['error']}
         if prom_tool:
             execute_command("helm install prometheus prometheus-community/prometheus --namespace=prom",tool_name)
             collection.update_one(
@@ -424,6 +429,7 @@ def create_prometheus():
             return jsonify({"message": f"Started execution of Helm command for {tool_name} in the background."})
     
     except Exception as e:
+      print(e)
       return jsonify({"error": f"An error occurred: {e}"}), 500
     
 @app.route('/create-binderhub', methods=['GET'])
@@ -898,8 +904,15 @@ def get_waiting_list():
 
         # Get the waiting list for the specified tool
         waiting_list = tool_info.get('waiting_queue', [])
+        roles_collection = db['roles']
 
-        return jsonify({"waiting_list": waiting_list}), 200
+        # Fetch usernames based on queue_ids
+        queue_users = []
+        for user_id in waiting_list:
+            user_info = roles_collection.find_one({"_id": ObjectId(user_id)}, {"username": 1, "_id": 0})
+            if user_info:
+                queue_users.append(user_info['username'])
+        return jsonify({"waiting_list": queue_users}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -919,11 +932,22 @@ def get_queue():
             return jsonify({"error": "Tool not found"}), 404
 
         # Get the current queue for the specified tool
-        queue = tool_info.get('queue', [])
+        queue_ids = tool_info.get('queue', [])
 
-        return jsonify({"queue": queue}), 200
+        # Accessing the 'roles' collection
+        roles_collection = db['roles']
+
+        # Fetch usernames based on queue_ids
+        queue_users = []
+        for user_id in queue_ids:
+            user_info = roles_collection.find_one({"_id": ObjectId(user_id)}, {"username": 1, "_id": 0})
+            if user_info:
+                queue_users.append(user_info['username'])
+
+        return jsonify({"queue": queue_users}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # Endpoint to fetch a username by user ID
 @app.route('/get-username/<user_id>', methods=['GET'])
@@ -1175,7 +1199,47 @@ def remove_user_from_all_queues(user_id):
 
 
 
+@app.route('/check-and-move-user', methods=['POST'])
+def check_and_move_user():
+    try:
+        # Extract data from the POST request
+        data = request.json
+        user_id = data.get('user_id')
+        tool_id_str = data.get('tool_id')
+        tool_id = ObjectId(tool_id_str)
 
+        # Accessing the 'toolQueue' collection
+        tool_queue_collection = db['toolQueue']
+
+        # Check if the user is already in the queue
+        tool_info = tool_queue_collection.find_one({"tool_id": tool_id})
+        if tool_info is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        current_queue = tool_info.get('queue', [])
+        current_waiting_list = tool_info.get('waiting_queue', [])
+        queue_limit = tool_info.get('queue_limit', 0)
+
+        if user_id in current_queue:
+            return jsonify({"user_in_queue": True}), 200
+        else:
+            if len(current_queue) < queue_limit:
+                if current_waiting_list:
+                    # Move the top user from waiting list to queue
+                    top_waiting_user = current_waiting_list[0]
+                    tool_queue_collection.update_one(
+                        {"tool_id": tool_id},
+                        {"$push": {"queue": top_waiting_user}, "$pop": {"waiting_queue": -1}}
+                    )
+                    return jsonify({"user_in_queue": False, "user_moved_to_queue": top_waiting_user}), 200
+                else:
+                    return jsonify({"user_in_queue": False, "waiting_list_empty": True}), 200
+            else:
+                return jsonify({"user_in_queue": False, "queue_limit_reached": True}), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
