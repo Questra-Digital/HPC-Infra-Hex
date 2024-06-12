@@ -12,6 +12,7 @@ const getStatus = () => {
   const [pods, setPods] = useState([]);
   const searchParams = useSearchParams();
   const name = searchParams.get("name");
+  const ids = searchParams.get("id");
   const [allPodsRunning, setAllPodsRunning] = useState(false); // State to track if all pods are running
   
   useEffect(() => {
@@ -145,7 +146,7 @@ const getStatus = () => {
 
           <Link href={{
             pathname: '/toolQueue',
-            query: { name: name },
+            query: { name: name ,id :ids},
           }}>
             <button
               type="button"

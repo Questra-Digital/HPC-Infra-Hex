@@ -17,7 +17,8 @@ const ToolsQueue = () => {
   const [role, setRole] = useState(null); // State to store user role
   const searchParams = useSearchParams();
   const name = searchParams.get("name");
-
+  const id = searchParams.get("id");
+  const [queueKey, setQueueKey] = useState(0);
   useEffect(() => {
     // Retrieve the user role from session storage
     const userRole = sessionStorage.getItem('user_role');
@@ -26,21 +27,21 @@ const ToolsQueue = () => {
     const fetchToolIdAndQueues = async () => {
       try {
         // Fetch the tool ID based on the tool name
-        const toolIdResponse = await axios.get(`${API_BASE_URL}/get-tool-id/${name}`);
-        const toolId = toolIdResponse.data.tool_id;
+       
+       
 
         // Fetch the queue limit using the tool ID
-        const queueLimitResponse = await axios.get(`${API_BASE_URL}/get-queue-limit/${toolId}`);
+        const queueLimitResponse = await axios.get(`${API_BASE_URL}/get-queue-limit/${id}`);
         setQueueLimit(queueLimitResponse.data.queue_limit);
         setNewQueueLimit(queueLimitResponse.data.queue_limit); // Set the newQueueLimit to the initial queueLimit
 
         // Fetch the running queue using the tool ID
-        const runningQueueResponse = await axios.post(`${API_BASE_URL}/queue`, { tool_id: toolId });
+        const runningQueueResponse = await axios.post(`${API_BASE_URL}/queue`, { tool_id: id });
         console.log("runningQueueResponse", runningQueueResponse.data.queue);
         setRunningQueue(runningQueueResponse.data.queue);
 
         // Fetch the waiting queue using the tool ID
-        const waitingQueueResponse = await axios.post(`${API_BASE_URL}/waiting-list`, { tool_id: toolId });
+        const waitingQueueResponse = await axios.post(`${API_BASE_URL}/waiting-list`, { tool_id: id });
         setWaitingQueue(waitingQueueResponse.data.waiting_list);
       } catch (error) {
         console.error('Error fetching tool ID or queues:', error);
@@ -48,7 +49,7 @@ const ToolsQueue = () => {
     };
 
     fetchToolIdAndQueues();
-  }, [name]);
+  }, [name,queueKey]);
 
   const handleQueueLimitChange = (e) => {
     setNewQueueLimit(e.target.value);
@@ -62,8 +63,8 @@ const ToolsQueue = () => {
 
   const updateQueueLimit = async () => {
     try {
-      const toolIdResponse = await axios.get(`${API_BASE_URL}/get-tool-id/${name}`);
-      const toolId = toolIdResponse.data.tool_id;
+      
+      const toolId = id;
 
       await axios.post(`${API_BASE_URL}/set-queue-limit`, {
         tool_id: toolId,
@@ -96,6 +97,41 @@ const ToolsQueue = () => {
     // }
   };
 
+
+
+  const handleUseTool = async () => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/add-to-queue`, {
+        user_id: sessionStorage.getItem('user_id'),
+        tool_id: id,
+      });
+      // Update running queue based on the response
+      setRunningQueue(response.data.Queue || []);
+      
+      // Update waiting queue based on the response
+      setWaitingQueue(response.data.waiting || []);
+      setQueueKey(prevKey => prevKey + 1);
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: response.data.user_status ? response.data.user_status.message : 'Added to queue successfully!',
+      });
+    } catch (error) {
+      console.error('Error adding to queue:', error);
+      // Show error message
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Failed to add to queue.',
+      });
+    }
+  };
+
+  useEffect(() => {
+    console.log(waitingQueue)
+  },
+  [runningQueue]);
   return (
     <div className="flex h-screen flex-col items-center text-white w-screen">
       <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure" />
@@ -131,7 +167,7 @@ const ToolsQueue = () => {
       )}
 
       <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4  rounded-lg">
-        <button className="text-md font-semibold">
+        <button className="text-md font-semibold" onClick={handleUseTool}>
           Use Tool
         </button>
       </div>
@@ -151,7 +187,7 @@ const ToolsQueue = () => {
           <div className='pt-6 px-4 overflow-auto text-xs text-start w-full'>
             {waitingQueue.map((user, index) => (
               <div key={index} className='p-2 border-b border-gray-300'>
-                <h3 className="text-md font-semibold">{user.username}</h3>
+                <h3 className="text-md font-semibold">{user}</h3>
               </div>
             ))}
           </div>

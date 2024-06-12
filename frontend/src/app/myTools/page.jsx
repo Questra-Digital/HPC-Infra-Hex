@@ -34,7 +34,8 @@ const MyTools = () => {
         {tools.map((tool, index) => (
           <Link href={{
             pathname: '/getStatusofTool',
-            query: { name: `${tool.tool_name}` },
+            query: { name: `${tool.tool_name}`, id: tool._id ,
+           },
           }}>
           <div key={index} 
                className="border hover:bg-[#33469e] rounded-2xl bg-[#132577] text-white p-8 cursor-pointer"

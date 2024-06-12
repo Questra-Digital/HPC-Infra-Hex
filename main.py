@@ -46,9 +46,10 @@ def get_tools():
         # Accessing the 'files' collection
         collection = db['tools']
 
-        # Fetch all documents from the collection
-        tools = list(collection.find({}, {"_id": 0}))
-
+        # Fetch all documents from the collection with tool ID
+        tools = list(collection.find({}))
+        for tool in tools:
+            tool['_id'] = str(tool['_id'])
         return jsonify(tools)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -787,7 +788,7 @@ def set_queue_limit():
         # Update the queue limit for the specified tool
         tool_queue_collection.update_one(
             {"tool_id": tool_id},
-            {"$set": {"queue_limit": queue_limit}}
+            {"$set": {"queue_limit": int(queue_limit)}}
         )
 
         return jsonify({"message": f"Queue limit set to {queue_limit} for tool {tool_id_str}"}), 200
@@ -958,6 +959,8 @@ def check_user_status(tool_info, user_id):
 
     return None
 
+from flask import request, jsonify
+
 @app.route('/add-to-queue', methods=['POST'])
 def add_to_queue():
     try:
@@ -977,7 +980,10 @@ def add_to_queue():
         # Check if the user is already in any queue or waiting list
         user_status = check_user_status(tool_info, user_id)
         if user_status:
-            return jsonify(user_status), 200
+            # Get the current queue and waiting list
+            current_queue = tool_info.get('queue', [])
+            current_waiting_list = tool_info.get('waiting_queue', [])
+            return jsonify({"user_status": user_status, "Queue": current_queue, "waiting": current_waiting_list}), 200
 
         # Get the queue limit for the specified tool
         queue_limit = tool_info.get('queue_limit', 0)
@@ -989,41 +995,49 @@ def add_to_queue():
                 {"tool_id": tool_id},
                 {"$push": {"queue": user_id}}
             )
-
-            # Retrieve service details from the 'tools' table
-            tool_details = db['tools'].find_one({"_id": tool_id})
-            if tool_details:
-                namespace = tool_details.get('namespace')
-                if namespace == "prom":
-                    pv_file_name = "prom_pv.yaml"
-                else:
-                    pv_file_name = "bhub_pv.yaml"
-              
-                # Call the create_persistent_volume function to create the PersistentVolume
-                result1 = create_persistent_volume(namespace, pv_file_name, user_id)
-                print(result1)
-                if "error" in result1:
-                    return jsonify({"error": result1["error"]}), 500
-
-                # Return success message along with service details
-                service_details = get_service_port(namespace, tool_details.get('service'))
-                return jsonify({
-                    "message": f"User {user_id} added to queue for tool {tool_id_str}",
-                    "queue_status": "In Queue",
-                    "service_details": service_details
-                }), 200
-            else:
-                return jsonify({"error": "Tool details not found"}), 404
+            queue_status = "In Queue"
         else:
             # Add user to the waiting list for the specified tool
             tool_queue_collection.update_one(
                 {"tool_id": tool_id},
                 {"$push": {"waiting_queue": user_id}}
             )
-            return jsonify({"message": f"User {user_id} added to waiting list for tool {tool_id_str}", "queue_status": "In Waiting List"}), 200
+            queue_status = "In Waiting List"
+
+        # Retrieve service details from the 'tools' table
+        tool_details = db['tools'].find_one({"_id": tool_id})
+        if tool_details:
+            namespace = tool_details.get('namespace')
+            if namespace == "prom":
+                pv_file_name = "prom_pv.yaml"
+            else:
+                pv_file_name = "bhub_pv.yaml"
+            
+            # Call the create_persistent_volume function to create the PersistentVolume
+            result1 = create_persistent_volume(namespace, pv_file_name, user_id)
+            print(result1)
+            if "error" in result1:
+                return jsonify({"error": result1["error"]}), 500
+
+            # Get the current queue and waiting list
+            current_queue = tool_info.get('queue', [])
+            current_waiting_list = tool_info.get('waiting_queue', [])
+
+            # Return success message along with service details, queue, and waiting list
+            service_details = get_service_port(namespace, tool_details.get('service'))
+            return jsonify({
+                "message": f"User {user_id} added to {queue_status} for tool {tool_id_str}",
+                "queue_status": queue_status,
+                "service_details": service_details,
+                "Queue": current_queue,
+                "waiting": current_waiting_list
+            }), 200
+        else:
+            return jsonify({"error": "Tool details not found"}), 404
     except Exception as e:
         print(e)
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/remove-from-queue', methods=['POST'])
