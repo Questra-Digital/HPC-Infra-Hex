@@ -1,8 +1,35 @@
 "use client";
-import React, { useEffect, useState } from 'react';
-
+import React, { useEffect, useState, useMemo } from 'react';
+import API_BASE_URL from '../../URL';
+import axios from 'axios';
 const MainNavbar = ({ title }) => {
   const [role, setRole] = useState(null);
+
+
+
+const logout = async () => {
+  try {
+    // Retrieve user ID from session storage
+    const userId = sessionStorage.getItem('user_id');
+
+    // Send a request to the backend to logout the user
+    const response = await axios.post(`${API_BASE_URL}/logout`, { user_id: userId });
+
+    // Check if the logout request was successful
+    if (response.status === 200) {
+      // Clear session storage
+      sessionStorage.clear();
+      // Redirect to login page
+      window.location.href = '/login';
+    } else {
+      throw new Error('Failed to logout');
+    }
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Handle error
+  }
+};
+
 
   useEffect(() => {
     // Retrieve the user role from session storage
@@ -17,35 +44,40 @@ const MainNavbar = ({ title }) => {
       { title: 'Run Command', link: '/runCommand', index: 2 },
       { title: 'MyTools', link: '/myTools', index: 3 },
       { title: 'Login', link: '/login', index: 4 },
+      { title: 'Logout',  index: 5, onClick: logout } // Add Logout link with onClick
     ],
     root: [
-      // { title: 'Register (Root)', link: '/registerAsRootUser', index: 0 },
-      { title: 'Cluster Consumption', link: '/clusterConsumptionDetail', index: 2},
+      { title: 'Cluster Consumption', link: '/clusterConsumptionDetail', index: 2 },
       { title: 'Drag & Drop Tools', link: '/dragnDropTools', index: 3 },
-      { title: 'Add Users', link: '/addUser', index: 4},
+      { title: 'Add Users', link: '/addUser', index: 4 },
     ],
     admin: [
       { title: 'Cluster Consumption', link: '/clusterConsumptionDetail', index: 2 },
-      { title: 'Drag & Drop Tools', link: '/dragnDropTools', index: 3},
-      { title: 'Add Users', link: '/addUser', index: 4},
+      { title: 'Drag & Drop Tools', link: '/dragnDropTools', index: 3 },
+      { title: 'Add Users', link: '/addUser', index: 4 },
     ],
   };
 
-  // Combine the common pages with role-specific pages and sort them by index
-  let pages = [...pagesConfig.common];
-  if (role === 'root') {
-    pages = [...pagesConfig.root, ...pagesConfig.common];
-  } else if (role === 'admin') {
-    pages = [...pagesConfig.admin, ...pagesConfig.common];
-  }
+  const pages = useMemo(() => {
+    let combinedPages = [...pagesConfig.common];
 
-  // Remove duplicates by creating a new array with unique pages based on titles
-  pages = Array.from(new Set(pages.map(page => page.title)))
-    .map(title => pages.find(page => page.title === title));
+    if (role === 'root') {
+      combinedPages = [...pagesConfig.root, ...pagesConfig.common];
+    } else if (role === 'admin') {
+      combinedPages = [...pagesConfig.admin, ...pagesConfig.common];
+    }
 
-  // Sort pages by index
-  pages.sort((a, b) => a.index - b.index);
+    // Remove duplicates by creating a new array with unique pages based on titles
+    const uniquePages = Array.from(new Set(combinedPages.map(page => page.title)))
+      .map(title => combinedPages.find(page => page.title === title));
 
+    // Sort pages by index
+    uniquePages.sort((a, b) => a.index - b.index);
+
+    return uniquePages;
+  }, [role]);
+
+ 
   return (
     <div className="bg-[#132577] flex flex-col items-center h-auto px-20 w-full py-4">
       <div className='flex flex-1 items-center justify-between w-full'>
@@ -54,10 +86,11 @@ const MainNavbar = ({ title }) => {
           <a href='/landingPage' className="text-xl md:text-2xl font-semibold ml-4">{title}</a>
         </div>
         <div className="text-xs flex">
-          {pages.map((page, index) => (
+          {pages.map(page => (
             <a
-              key={index}
+              key={page.link} // Using link as the key
               href={page.link}
+              onClick={page.onClick ? (e) => { e.preventDefault(); page.onClick(); } : null}
               className="text-white ml-4 hover:text-gray-300 transition duration-300"
             >
               {page.title}
