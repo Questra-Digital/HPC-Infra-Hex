@@ -391,7 +391,7 @@ singleuser:
     capacity: 1Gi
     homeMountPath: /home/jovyan
     dynamic:
-      storageClass: nfs-storage-class
+      storageClass:
       pvcNameTemplate: claim-{username}{servername}
       volumeNameTemplate: volume-{username}{servername}
       storageAccessModes: [ReadWriteOnce]
