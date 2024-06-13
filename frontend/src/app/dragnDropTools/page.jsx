@@ -7,6 +7,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import MainNavbar from '../Components/Shared/MainNavbar';
 import Footer from '../Components/Footer';
 import API_BASE_URL from '../URL';
+import { FaInfoCircle } from 'react-icons/fa';
 
 const ItemTypes = {
   TOOL: 'tool',
@@ -73,7 +74,9 @@ const DragAndDropPage = () => {
   const [tools, setTools] = useState([]);
   const [droppedTools, setDroppedTools] = useState([]);
   const [installationStatus, setInstallationStatus] = useState('');
-  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [gifKey, setGifKey] = useState(0);
+
   useEffect(() => {
     fetchDataFromAPI();
   }, []);
@@ -112,6 +115,11 @@ const DragAndDropPage = () => {
     }
   };
 
+  const toggleModal = () => {
+    setIsModalOpen(!isModalOpen);
+    setGifKey(prevKey => prevKey + 1);
+  };
+
   return (
     <div className="h-screen flex flex-col items-center text-white w-screen">
       <MainNavbar className="flex-1" title="HPC MLOPs Infrastructure"  />
@@ -137,7 +145,12 @@ const DragAndDropPage = () => {
         <DndProvider className="flex-2 h-full flex w-screen" backend={HTML5Backend}>
           <div className='flex h-[600px] gap-[5%]'>
             <div className='border h-full flex-1 w-[30%] border-gray-400 rounded bg-gray-100 py-[2%] px-[2%] '>
-              <h1 className="text-lg md:text-xl font-semibold">Tool List</h1>
+              <h1 className="text-lg md:text-xl font-semibold flex items-center">
+                Tool List
+                <span className="ml-2 cursor-pointer" onClick={toggleModal}>
+                  <FaInfoCircle />
+                </span>
+              </h1>
               <ul className='mt-4 text-sm'>
                 {tools.map((tool, index) => (
                   <li key={index}>
@@ -151,6 +164,20 @@ const DragAndDropPage = () => {
         </DndProvider>
       </div>
       <Footer />
+      {isModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+        <div className="bg-white rounded-lg p-6 w-3/4 md:w-1/2">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-black">How To Install Tool in 1 Click</h2>
+            <button onClick={toggleModal} className="text-xl text-black">&times;</button>
+          </div>
+          <div className="flex justify-center">
+          <img key={gifKey} src="/tutorial.gif" alt="Tutorial" />
+          </div>
+        </div>
+      </div>
+      
+      )}
     </div>
   );
 };
