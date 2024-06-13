@@ -77,8 +77,10 @@ const AddUserToOrganization = () => {
                   className="mr-2" 
                 />
                 Simple User
-              </label>
-              <label className="flex items-center">
+              </label>.
+              {
+                (sessionStorage.getItem('user_role') === 'root') && (
+                <label className="flex items-center">
                 <input 
                   type="radio" 
                   name="role" 
@@ -89,6 +91,9 @@ const AddUserToOrganization = () => {
                 />
                 Admin
               </label>
+              )
+              }
+              
             </div>
           </div>
           <div className="mt-8">
