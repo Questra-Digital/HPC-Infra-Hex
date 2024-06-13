@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import MainNavbar from '../Components/Shared/MainNavbar';
 import axios from 'axios';
 import API_BASE_URL from '../URL';
+import Swal from 'sweetalert2'; // Import SweetAlert
 
 const AddUserToOrganization = () => {
   const [formData, setFormData] = useState({
@@ -21,8 +22,18 @@ const AddUserToOrganization = () => {
     try {
       const response = await axios.post(`${API_BASE_URL}/add-user`, formData);
       console.log('User added:', response.data);
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'User Added successfully!',
+      });
     } catch (error) {
       console.error('Error adding user:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Failed to add User.',
+      });
     }
   };
 
@@ -77,7 +88,7 @@ const AddUserToOrganization = () => {
                   className="mr-2" 
                 />
                 Simple User
-              </label>.
+              </label>
               {
                 (sessionStorage.getItem('user_role') === 'root') && (
                 <label className="flex items-center">
