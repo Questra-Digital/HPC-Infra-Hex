@@ -52,17 +52,21 @@ const ToolsQueue = () => {
         setNamespace(toolDetailsResponse.data.namespace);
         setService(toolDetailsResponse.data.service);
 
+
         checkUserInQueue(); // Initial check when component mounts
 
         // Check if user is in the queue every 10 seconds if showRunToolButton is false
         const interval = setInterval(() => {
           if (!showRunToolButton) {
+
             checkUserInQueue();
           }
         }, 10000);
 
         // Clean up interval on component unmount or when showRunToolButton becomes true
         return () => clearInterval(interval);
+
+
       } catch (error) {
         console.error('Error fetching tool ID or queues:', error);
       } finally {
@@ -73,6 +77,10 @@ const ToolsQueue = () => {
     fetchToolIdAndQueues();
   }, [name, showRunToolButton, queueKey]); // Include showRunToolButton in dependency array
 
+
+
+
+ 
   const handleQueueLimitChange = (e) => {
     setNewQueueLimit(e.target.value);
   };
@@ -243,7 +251,9 @@ const ToolsQueue = () => {
         </div>
       </div>
     </div>
+
   );
+
 };
 
 export default ToolsQueue;

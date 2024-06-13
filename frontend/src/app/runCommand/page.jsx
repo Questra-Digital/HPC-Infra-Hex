@@ -20,7 +20,8 @@ const AddCluster = () => {
   const handleEnterPress = async (e) => {
     if (e.key === 'Enter') {
       try {
-        const response = await Axios.post(`${API_BASE_URL}/run-command/${vmware}`, { command });
+        const tool_name = "JupyterHub"
+        const response = await Axios.post(`${API_BASE_URL}/execute-commands`, { command});
         setCommandResponse(JSON.stringify(response.data));
       } catch (error) {
         setCommandResponse(JSON.stringify(error));

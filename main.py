@@ -693,6 +693,46 @@ def execute_command(command,tool_name):
     else:
         return jsonify({"error": "Current node not found."})
 
+
+
+@app.route('/execute-commands', methods=['POST'])
+def execute_commands():
+    data = request.json
+    command = data.get('command')
+    namespace = data.get('namespace', 'default') 
+    update_current_node() # Use 'default' namespace if not specified
+    pod_name = current_node
+    print(pod_name)
+  
+    if not command or not pod_name:
+        return jsonify({"message": "Command and pod_name are required"}), 400
+
+    try:
+        # Create an API client
+
+        config.load_kube_config()
+
+    # Create the API client
+   
+        api_instance = client.CoreV1Api()
+
+        # Execute the command on the pod
+        exec_command = ['/bin/sh', '-c', command]
+        resp = stream(api_instance.connect_get_namespaced_pod_exec,
+                      pod_name,
+                      namespace,
+                      command=exec_command,
+                      stderr=True, stdin=False,
+                      stdout=True, tty=False)
+        message = resp
+    except client.rest.ApiException as e:
+        print(e)
+        message = f"Exception when calling CoreV1Api->connect_get_namespaced_pod_exec: {e}"
+    print(message)
+    return jsonify({"message": message})
+
+
+
 @app.route('/get-status/<tool_name>', methods=['GET'])
 def get_status(tool_name):
     global output
