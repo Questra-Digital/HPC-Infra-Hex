@@ -60,7 +60,7 @@ const ToolsQueue = () => {
         setService(toolDetailsResponse.data.service);
   
         // Check if user is in the queue every 5 seconds if showRunToolButton is false
-        if (!showRunToolButton) {
+       /* if (!showRunToolButton) {
           const interval = setInterval(() => {
             checkUserInQueue();
           }, 10000);
@@ -70,7 +70,7 @@ const ToolsQueue = () => {
 
         // Clean up interval on component unmount or when showRunToolButton becomes true
         return () => clearInterval(interval);
-
+*/
 
       } catch (error) {
         console.error('Error fetching tool ID or queues:', error);
@@ -83,6 +83,20 @@ const ToolsQueue = () => {
 
   }, [name, showRunToolButton, queueKey]); // Include showRunToolButton in dependency array
 
+
+
+  useEffect(() => {
+
+    const interval = setInterval(() => {
+      checkUserInQueue();
+    }, 10000);
+    if (showRunToolButton) {
+      clearInterval(interval);
+    } else {
+      
+    }
+    return () => clearInterval(interval);
+  }, [ showRunToolButton]); 
 
   const handleQueueLimitChange = (e) => {
     setNewQueueLimit(e.target.value);
@@ -268,7 +282,7 @@ const ToolsQueue = () => {
         </div>
       </div>
     </div>
-  </div>
+  
 );
 };
 
