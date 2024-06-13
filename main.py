@@ -55,6 +55,24 @@ def get_tools():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/get-tool-details/<tool_id>', methods=['GET'])
+def get_tool_details(tool_id):
+    try:
+        # Accessing the 'tools' collection
+        collection = db['tools']
+        tool = collection.find_one({"_id": ObjectId(tool_id)})
+
+        if tool is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        namespace = tool.get("namespace")
+        service = tool.get("service")
+
+        return jsonify({"namespace": namespace, "service": service}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/get-tool-id/<tool_name>', methods=['GET'])
 def get_tool_id(tool_name):
     try:
@@ -1240,6 +1258,36 @@ def check_and_move_user():
     except Exception as e:
         print(e)
         return jsonify({"error": str(e)}), 500
+
+@app.route('/uninstall-tool/<tool_id>', methods=['DELETE'])
+def uninstall_tool(tool_id):
+    try:
+        # Accessing the 'tools' collection
+        collection = db['tools']
+        tool = collection.find_one({"_id": ObjectId(tool_id)})
+
+        if tool is None:
+            return jsonify({"error": "Tool not found"}), 404
+
+        helm_command = tool.get("helm_command")
+        namespace = tool.get("namespace")
+
+        # Extract pod name from helm_command
+        pod_name = helm_command.split(" ")[4]
+        
+        # Create the helm uninstall command
+        uninstall_command = f"helm uninstall {pod_name} -n {namespace}"
+
+        # Execute the uninstall command
+        command_result = execute_command(uninstall_command, tool['tool_name'])
+
+        # Update the tool's installed status to "false" (as a string) in MongoDB
+        update_result = collection.update_one({"_id": ObjectId(tool_id)}, {"$set": {"installed": "false"}})
+        print("hi")
+
+        return jsonify({"message": f"Tool {pod_name} uninstalled successfully", "command_output": command_result["output"]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 200
 
 
 if __name__ == "__main__":
