@@ -6,12 +6,8 @@ import MainNavbar from '../Components/Shared/MainNavbar';
 import Swal from 'sweetalert2'; // Import SweetAlert
 import API_BASE_URL from '../URL';
 import { FiEdit3 } from 'react-icons/fi'; // Importing an edit icon
-
 import ClipLoader from "react-spinners/ClipLoader";
-
-
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'; // Importing a spinner icon
-
 
 const ToolsQueue = () => {
   const [runningQueue, setRunningQueue] = useState([]);
@@ -24,9 +20,7 @@ const ToolsQueue = () => {
 
   const [namespace, setNamespace] = useState('');
   const [service, setService] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // State for loading spinner
-
-  const [loading, setLoading] = useState(true); // State to manage initial loading spinner
+  const [initialLoading, setInitialLoading] = useState(true); // State to manage initial loading spinner
 
   const searchParams = useSearchParams();
   const name = searchParams.get("name");
@@ -45,7 +39,7 @@ const ToolsQueue = () => {
         setQueueLimit(queueLimitResponse.data.queue_limit);
         setNewQueueLimit(queueLimitResponse.data.queue_limit); // Set the newQueueLimit to the initial queueLimit
 
-        // Fetch the running queue using the tool ID
+        // Fetch the running queue
         const runningQueueResponse = await axios.post(`${API_BASE_URL}/queue`, { tool_id: id });
         setRunningQueue(runningQueueResponse.data.queue);
 
@@ -53,36 +47,31 @@ const ToolsQueue = () => {
         const waitingQueueResponse = await axios.post(`${API_BASE_URL}/waiting-list`, { tool_id: id });
         setWaitingQueue(waitingQueueResponse.data.waiting_list);
 
-  
         // Fetch the tool details (namespace and service)
         const toolDetailsResponse = await axios.get(`${API_BASE_URL}/get-tool-details/${id}`);
         setNamespace(toolDetailsResponse.data.namespace);
         setService(toolDetailsResponse.data.service);
-  
-        // Check if user is in the queue every 5 seconds if showRunToolButton is false
-        if (!showRunToolButton) {
-          const interval = setInterval(() => {
+
+        checkUserInQueue(); // Initial check when component mounts
+
+        // Check if user is in the queue every 10 seconds if showRunToolButton is false
+        const interval = setInterval(() => {
+          if (!showRunToolButton) {
             checkUserInQueue();
-          }, 10000);
-        } else {
-          clearInterval(interval);
-        }
+          }
+        }, 10000);
 
         // Clean up interval on component unmount or when showRunToolButton becomes true
         return () => clearInterval(interval);
-
-
       } catch (error) {
         console.error('Error fetching tool ID or queues:', error);
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
       }
     };
 
     fetchToolIdAndQueues();
-
   }, [name, showRunToolButton, queueKey]); // Include showRunToolButton in dependency array
-
 
   const handleQueueLimitChange = (e) => {
     setNewQueueLimit(e.target.value);
@@ -97,7 +86,6 @@ const ToolsQueue = () => {
   const updateQueueLimit = async () => {
     try {
       const toolId = id;
-
       await axios.post(`${API_BASE_URL}/set-queue-limit`, {
         tool_id: toolId,
         queue_limit: newQueueLimit
@@ -133,7 +121,6 @@ const ToolsQueue = () => {
       });
       setRunningQueue(response.data.Queue || []);
       setWaitingQueue(response.data.waiting || []);
-
       setQueueKey(prevKey => prevKey + 1);
       // Show success message
       Swal.fire({
@@ -165,11 +152,10 @@ const ToolsQueue = () => {
   };
 
   const handleRunTool = async () => {
-    setIsLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/get-service-port/${namespace}/${service}`);
-        const port = response.data.node_port;
-        window.open(`http://192.168.56.10:${port}`, '_blank');
+      const port = response.data.node_port;
+      window.open(`http://192.168.56.10:${port}`, '_blank');
     } catch (error) {
       console.error('Error running tool:', error);
       Swal.fire({
@@ -177,8 +163,6 @@ const ToolsQueue = () => {
         title: 'Error!',
         text: 'Failed to run the tool.',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -188,11 +172,9 @@ const ToolsQueue = () => {
       <div className='mt-10 flex-1 text-[#132577] text-xl font-bold'>
         Tools Queue - {name}
       </div>
-      
+
       {queueLimit !== null && (
-
         <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 my-4 rounded-lg">
-
           {isEditing ? (
             <div className="flex items-center">
               <span className="text-md font-semibold">Queue Limit:</span>
@@ -218,16 +200,13 @@ const ToolsQueue = () => {
         </div>
       )}
 
-
       <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 my-4 rounded-lg">
-
         <button className="text-md font-semibold" onClick={handleUseTool}>
           Add to Queue
         </button>
       </div>
 
-
-      {loading ? (
+      {initialLoading ? (
         <div className="flex items-center justify-center h-full">
           <AiOutlineLoading3Quarters className="animate-spin text-[#132577] rounded-full" size={64} />
         </div>
@@ -239,7 +218,6 @@ const ToolsQueue = () => {
             </button>
           </div>
         )
-
       )}
       
       <div className="bg-[#132577] m-[5%] py-[0%] px-[5%] h-[100%] flex flex-col gap-10 md:flex-row items-center w-[80%]">
@@ -255,22 +233,17 @@ const ToolsQueue = () => {
         </div>
         <div className='flex flex-col p-10 items-center text-center h-full w-full rounded-2xl bg-white text-[#132577]'>
           <h2 className="text-2xl font-bold">Waiting Queue</h2>
-
           <div className='pt-6 px-4 overflow-auto text-xs text-start w-full'>
             {waitingQueue.map((user, index) => (
-
               <div key={index} className='flex items-center justify-start p-2 border-b border-gray-300'>
                 <h3 className="text-md font-semibold">{user}</h3>
               </div>
             ))}
           </div>
-
         </div>
       </div>
     </div>
-  // </div>
-);
+  );
 };
 
 export default ToolsQueue;
-
