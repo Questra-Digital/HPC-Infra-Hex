@@ -6,7 +6,11 @@ import MainNavbar from '../Components/Shared/MainNavbar';
 import Swal from 'sweetalert2'; // Import SweetAlert
 import API_BASE_URL from '../URL';
 import { FiEdit3 } from 'react-icons/fi'; // Importing an edit icon
+
 import ClipLoader from "react-spinners/ClipLoader";
+
+
+import { AiOutlineLoading3Quarters } from 'react-icons/ai'; // Importing a spinner icon
 
 
 const ToolsQueue = () => {
@@ -17,9 +21,13 @@ const ToolsQueue = () => {
   const [newQueueLimit, setNewQueueLimit] = useState(null); // State to store the new queue limit input
   const [role, setRole] = useState(null); // State to store user role
   const [showRunToolButton, setShowRunToolButton] = useState(false); // State to toggle showing "Run Tool" button
+
   const [namespace, setNamespace] = useState('');
   const [service, setService] = useState('');
   const [isLoading, setIsLoading] = useState(false); // State for loading spinner
+
+  const [loading, setLoading] = useState(true); // State to manage initial loading spinner
+
   const searchParams = useSearchParams();
   const name = searchParams.get("name");
   const id = searchParams.get("id");
@@ -36,14 +44,15 @@ const ToolsQueue = () => {
         const queueLimitResponse = await axios.get(`${API_BASE_URL}/get-queue-limit/${id}`);
         setQueueLimit(queueLimitResponse.data.queue_limit);
         setNewQueueLimit(queueLimitResponse.data.queue_limit); // Set the newQueueLimit to the initial queueLimit
-  
+
         // Fetch the running queue using the tool ID
         const runningQueueResponse = await axios.post(`${API_BASE_URL}/queue`, { tool_id: id });
         setRunningQueue(runningQueueResponse.data.queue);
-  
+
         // Fetch the waiting queue using the tool ID
         const waitingQueueResponse = await axios.post(`${API_BASE_URL}/waiting-list`, { tool_id: id });
         setWaitingQueue(waitingQueueResponse.data.waiting_list);
+
   
         // Fetch the tool details (namespace and service)
         const toolDetailsResponse = await axios.get(`${API_BASE_URL}/get-tool-details/${id}`);
@@ -62,13 +71,18 @@ const ToolsQueue = () => {
         // Clean up interval on component unmount or when showRunToolButton becomes true
         return () => clearInterval(interval);
 
+
       } catch (error) {
         console.error('Error fetching tool ID or queues:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchToolIdAndQueues();
+
   }, [name, showRunToolButton, queueKey]); // Include showRunToolButton in dependency array
+
 
   const handleQueueLimitChange = (e) => {
     setNewQueueLimit(e.target.value);
@@ -176,7 +190,9 @@ const ToolsQueue = () => {
       </div>
       
       {queueLimit !== null && (
+
         <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 my-4 rounded-lg">
+
           {isEditing ? (
             <div className="flex items-center">
               <span className="text-md font-semibold">Queue Limit:</span>
@@ -202,22 +218,28 @@ const ToolsQueue = () => {
         </div>
       )}
 
+
       <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 my-4 rounded-lg">
+
         <button className="text-md font-semibold" onClick={handleUseTool}>
           Add to Queue
         </button>
       </div>
 
-      {showRunToolButton && (
-        <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 my-4 rounded-lg">
-          <button className="text-md font-semibold" onClick={handleRunTool} disabled={isLoading}>
-            {isLoading ? (
-              <ClipLoader color="#ffffff" loading={isLoading} size={20} />
-            ) : (
-              "Run Tool"
-            )}
-          </button>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-full">
+          <AiOutlineLoading3Quarters className="animate-spin text-[#132577] rounded-full" size={64} />
         </div>
+      ) : (
+        showRunToolButton && (
+          <div className="flex items-center justify-center bg-[#132577] text-white w-[18%] p-4 rounded-lg">
+            <button className="text-md font-semibold" onClick={handleRunTool}>
+              Run Tool 
+            </button>
+          </div>
+        )
+
       )}
       
       <div className="bg-[#132577] m-[5%] py-[0%] px-[5%] h-[100%] flex flex-col gap-10 md:flex-row items-center w-[80%]">
@@ -233,18 +255,22 @@ const ToolsQueue = () => {
         </div>
         <div className='flex flex-col p-10 items-center text-center h-full w-full rounded-2xl bg-white text-[#132577]'>
           <h2 className="text-2xl font-bold">Waiting Queue</h2>
+
           <div className='pt-6 px-4 overflow-auto text-xs text-start w-full'>
             {waitingQueue.map((user, index) => (
+
               <div key={index} className='flex items-center justify-start p-2 border-b border-gray-300'>
                 <h3 className="text-md font-semibold">{user}</h3>
               </div>
             ))}
           </div>
+
         </div>
       </div>
-      {/* <Footer /> */}
     </div>
-  );
+  </div>
+);
 };
 
 export default ToolsQueue;
+
