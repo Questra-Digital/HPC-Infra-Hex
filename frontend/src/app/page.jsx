@@ -14,7 +14,7 @@ const Home = () => {
 
   return (
     <div className="h-screen flex flex-col gap-[10%] items-center text-white w-screen">
-      <Login/>
+      <Login className='flex-1'/>
         {/* <div className='flex-1'>
             <MainNavbar className="" title="HPC MLOPs Infrastructure" />
             <LandingPageHeader className=""  />
