@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: usmanf07/nextjs-cont
+  repository: talha9445/nextjs-cont
   pullPolicy: Always
   tag: "latest"
 

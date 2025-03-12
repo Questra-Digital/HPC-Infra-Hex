@@ -42,6 +42,8 @@ RUN helm repo add prometheus-community https://prometheus-community.github.io/he
 
 RUN helm repo add grafana https://grafana.github.io/helm-charts
 
+RUN helm repo add bitnami https://charts.bitnami.com/bitnami
+
 # Update the Helm repositories
 RUN helm repo update
 # Install any needed packages specified in requirements.txt
@@ -51,7 +53,7 @@ RUN pip install --trusted-host pypi.python.org -r requirements.txt
 EXPOSE 80
 
 # Define environment variable
-ENV NAME World
+ENV NAME=World
 
 # Specify the command to run on container start
 ENTRYPOINT ["python", "app.py"]
