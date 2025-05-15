@@ -61,9 +61,13 @@ const GetStatus = () => {
             response = await axios.get(`${API_BASE_URL}/get-pods/argocd`);
           } else if (name === "Jenkins") {
             response = await axios.get(`${API_BASE_URL}/get-pods/jenkins`);
-          } else if (name === "Zipkin") {
-            response = await axios.get(`${API_BASE_URL}/get-pods/zipkin`);
-          } 
+          } else if (name === "OpenTelemetry") {
+            response = await axios.get(`${API_BASE_URL}/get-pods/otel-collector`);
+          } else if (name === "Katib") {
+            response = await axios.get(`${API_BASE_URL}/get-pods/katib`);
+          } else if (name === "PostgreSQL") {
+            response = await axios.get(`${API_BASE_URL}/get-pods/postgresql`);
+          }
           else {
             console.error('Unsupported tool name:', name);
             return;
@@ -94,9 +98,9 @@ const GetStatus = () => {
       } else if (name === "BinderHub") {
         endpoint = `${API_BASE_URL}/get-service-port/bhub/binder`;
       } else if (name === "Prometheus") {
-        endpoint = `${API_BASE_URL}/get-service-port/prom/prometheus-server-ext`;
+        endpoint = `${API_BASE_URL}/get-service-port/prom/prometheus-server`;
       } else if (name === "Grafana") {
-        endpoint = `${API_BASE_URL}/get-service-port/graf/grafana-ext`;
+        endpoint = `${API_BASE_URL}/get-service-port/graf/grafana`;
       } else if (name === "MariaDB") {
         endpoint = `${API_BASE_URL}/get-service-port/mariadb/mariadb`;
       } else if (name === "Wordpress") {
@@ -109,11 +113,13 @@ const GetStatus = () => {
         endpoint = `${API_BASE_URL}/get-service-port/argocd/argocd-argo-cd-server`;
       } else if (name === "Jenkins") {
         endpoint = `${API_BASE_URL}/get-service-port/jenkins/jenkins`;
-      } else if (name === "Milvus") {
-        endpoint = `${API_BASE_URL}/get-service-port/milvus/milvus`;
-      } else if (name === "Zipkin") {
-        endpoint = `${API_BASE_URL}/get-service-port/zipkin/zipkin`;
-      }
+      } else if (name === "OpenTelemetry") {
+        endpoint = `${API_BASE_URL}/get-service-port/otel-collector/otel-collector`;
+      } else if (name === "Katib") {
+        endpoint = `${API_BASE_URL}/get-service-port/katib/katib-ui`;
+      } else if (name === "PostgreSQL") {
+        endpoint = `${API_BASE_URL}/get-service-port/postgresql/postgresql`;
+      } 
       else {
         console.error('Unsupported tool name:', name);
         return;

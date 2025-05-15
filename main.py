@@ -13,6 +13,7 @@ from kubernetes.stream import stream
 from flask_cors import CORS
 import os
 from bson import ObjectId
+from prometheus_client import Gauge
 
 app = Flask(__name__)
 
@@ -30,6 +31,8 @@ k8s_client = client.ApiClient()
 Coreapi = client.CoreV1Api()
 current_node = None
 output = {}
+
+ACTIVE_USERS = Gauge("active_users", "Currently logged-in users")
 
 
 @app.route("/reset-installed", methods=["GET"])
@@ -236,6 +239,7 @@ def login_user():
         if not user.authenticate(password):
             return create_error_response("Invalid password", 401)
 
+        ACTIVE_USERS.inc()
         return (
             jsonify(
                 {
@@ -896,7 +900,8 @@ def create_grafana():
         helm_command = ""
         if grafana_tool:
             execute_command(
-                "helm install grafana grafana/grafana --namespace=graf", tool_name
+                "helm upgrade --cleanup-on-fail --install grafana grafana/grafana --namespace=graf --create-namespace --set service.type=NodePort ",
+                tool_name,
             )
             collection.update_one(
                 {"tool_name": tool_name}, {"$set": {"installed": "true"}}
@@ -942,7 +947,7 @@ def create_prometheus():
         #     return {"error": result['error']}
         if prom_tool:
             execute_command(
-                "helm install prometheus prometheus-community/prometheus --namespace=prom",
+                "helm install prometheus prometheus-community/prometheus --namespace=prom --set service.type=NodePort --set server.service.type=NodePort",
                 tool_name,
             )
             collection.update_one(
@@ -2143,6 +2148,337 @@ def delete_jenkins():
         return jsonify({"error": f"An error occurred: {e}"}), 500
 
 
+@app.route("/create-opentelemetry", methods=["GET"])
+def create_opentelemetry():
+    try:
+        tool_name = "OpenTelemetry"
+
+        # Create namespace
+        namespace = "otel-collector"
+        result = create_namespace(namespace)
+        if result[1] != 200:
+            return result
+
+        # Install using Helm
+        result = install_the_tool(tool_name)
+        if result[1] != 200:
+            return (
+                jsonify({"error": f"Failed to install OpenTelemetry: {result.stderr}"}),
+                500,
+            )
+
+        # Configure Prometheus scraping
+        configure_prometheus_scraping()
+
+        return jsonify({"message": "OpenTelemetry installation started successfully"})
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {e}"}), 500
+
+
+@app.route("/delete-opentelemetry", methods=["DELETE"])
+def delete_opentelemetry():
+    try:
+        # Uninstall Helm release
+        result = uninstall_the_tool("OpenTelemetry")
+        if result[1] != 200:
+            return result
+
+        # Delete namespace
+        namespace = "otel-collector"
+        result = delete_namespace(namespace)
+        if result[1] != 200:
+            return result
+
+        return jsonify({"message": "OpenTelemetry deletion started successfully"})
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {e}"}), 500
+
+
+@app.route("/create-katib", methods=["GET"])
+def create_katib():
+    try:
+        namespace = "katib"
+        # 1) Namespace
+        r = create_namespace(namespace)
+        if r[1] != 200:
+            return r
+
+        # 2) PV create
+        katib = db["tools"].find_one({"tool_name": "Katib"})
+        with open("my-custom-nfs-pv.yaml") as f:
+            pv = yaml.safe_load(f)
+        pv["metadata"]["name"] = katib["pv_name"]
+        pv["spec"]["storageClassName"] = katib["storage_class"]
+        pv["spec"]["nfs"]["path"] = "/shared/nfs"
+        pv["spec"]["capacity"]["storage"] = "8Gi"
+        pv["spec"]["nfs"]["server"] = katib["nfs_server"]
+        pv["spec"]["mountOptions"] = ["nfsvers=4.1"]
+
+        yaml.dump(pv, open("temp-pv.yaml", "w"))
+        r = create_pv(namespace, "temp-pv.yaml", katib["pv_name"])
+        if r[1] != 200:
+            return r
+
+        # 3) Helm install (jo chart PVC banayega)
+        r = install_the_tool("Katib")
+        if r[1] != 200:
+            return jsonify({"error": f"Install failed: {r[0].get_json()}"}), 500
+
+        subprocess.run(
+            [
+                "kubectl",
+                "patch",
+                "svc",
+                "katib-ui",
+                "-n",
+                "katib",
+                "-p",
+                '{"spec": {"type": "NodePort"}}',
+            ],
+            check=True,
+        )
+        tool_status_manager.set_status(
+            "Katib", "Katib installation started successfully."
+        )
+
+        return jsonify(
+            {
+                "message": f"Started execution of Helm command for Katib in the background."
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/delete-katib", methods=["DELETE"])
+def delete_katib():
+    try:
+        # 1) Helm uninstall
+        r = uninstall_the_tool("Katib")
+        if r[1] != 200:
+            return r
+
+        # 2) PVC delete
+        pvc = "data-katib-mariadb-0"  # chart default PVC name
+        r = delete_persistent_volume_claim(pvc, "katib")
+        if r[1] != 200:
+            return r
+
+        # 3) PV delete
+        pv = "katib-mysql-pv"
+        r = delete_pv(pv, "katib")
+        if r[1] != 200:
+            return r
+
+        # 4) Webhook cleanup
+        subprocess.run(
+            "kubectl delete mutatingwebhookconfigurations katib-mutating-webhook-config",
+            shell=True,
+        )
+        subprocess.run(
+            "kubectl delete validatingwebhookconfigurations katib-validating-webhook-config",
+            shell=True,
+        )
+
+        # 5) Namespace delete
+        r = delete_namespace("katib")
+        if r[1] != 200:
+            return r
+
+        return jsonify({"message": "Katib deletion completed"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/create-kfnotebooks", methods=["GET"])
+def create_kfnotebooks():
+    try:
+        namespace = "kf-notebooks"
+        # 1) Namespace
+        r = create_namespace(namespace)
+        if r[1] != 200:
+            return r
+
+        # 2) PV create
+        kfnotebooks = db["tools"].find_one({"tool_name": "KFNotebooks"})
+        with open("my-custom-nfs-pv.yaml") as f:
+            pv = yaml.safe_load(f)
+        pv["metadata"]["name"] = kfnotebooks["pv_name"]
+        pv["spec"]["storageClassName"] = ""
+        pv["spec"]["nfs"]["path"] = "/shared/nfs"
+        pv["spec"]["capacity"]["storage"] = "5Gi"
+        pv["spec"]["nfs"]["server"] = kfnotebooks["nfs_server"]
+        pv["spec"]["mountOptions"] = ["nfsvers=4.1"]
+
+        yaml.dump(pv, open("temp-pv.yaml", "w"))
+        r = create_pv(namespace, "temp-pv.yaml", kfnotebooks["pv_name"])
+        if r[1] != 200:
+            return r
+
+        # 3) Helm install (jo chart PVC banayega)
+        r = install_the_tool("KFNotebooks")
+        if r[1] != 200:
+            return jsonify({"error": f"Install failed: {r[0].get_json()}"}), 500
+
+        tool_status_manager.set_status(
+            "KFNotebooks", "KFNotebooks installation started successfully."
+        )
+
+        return jsonify(
+            {
+                "message": f"Started execution of Helm command for KFNotebooks in the background."
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/delete-kfnotebooks", methods=["DELETE"])
+def delete_kfnotebooks():
+    try:
+        # 1) Helm uninstall
+        r = uninstall_the_tool("KFNotebooks")
+        if r[1] != 200:
+            return r
+
+        # 2) PVC delete
+        pvc = "kf-notebooks-vscode-workspace"  # chart default PVC name
+        r = delete_persistent_volume_claim(pvc, "kf-notebooks")
+        if r[1] != 200:
+            return r
+
+        # 3) PV delete
+        pv = "kfnotebooks-vscode-pv"
+        r = delete_pv(pv, "kf-notebooks")
+        if r[1] != 200:
+            return r
+
+        # 5) Namespace delete
+        r = delete_namespace("kf-notebooks")
+        if r[1] != 200:
+            return r
+
+        return jsonify({"message": "KFNotebooks deletion completed"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/create-postgresql", methods=["GET"])
+def create_postgresql():
+    try:
+        ns = "postgresql"
+
+        # 1) Namespace
+        r = create_namespace(ns)
+        if r[1] != 200:
+            return r
+
+        # 2) PV create
+        pg = db["tools"].find_one({"tool_name": "PostgreSQL"})
+        with open("my-custom-nfs-pv.yaml") as f:
+            pv = yaml.safe_load(f)
+
+        # Safely update fields
+        pv["metadata"]["name"] = pg["pv_name"]
+        pv["spec"]["storageClassName"] = pg["storage_class"]
+
+        if "capacity" not in pv["spec"]:
+            pv["spec"]["capacity"] = {}
+        pv["spec"]["capacity"]["storage"] = "8Gi"
+
+        if "nfs" not in pv["spec"]:
+            pv["spec"]["nfs"] = {}
+        pv["spec"]["nfs"]["path"] = pg["nfs_path"]
+        pv["spec"]["nfs"]["server"] = "192.168.56.10"  # Ensure server is set
+
+        # Dump updated PV to temp file
+        with open("temp-pv.yaml", "w") as out:
+            yaml.dump(pv, out)
+
+        r = create_pv(ns, "temp-pv.yaml", pg["pv_name"])
+        if r[1] != 200:
+            return r
+
+        # 3) Helm install chart jo PVC khud create karega
+        r = install_the_tool("PostgreSQL")
+        if r[1] != 200:
+            return jsonify({"error": f"Install failed: {r[0].get_json()}"}), 500
+
+        # Steps to RUN
+        #  kubectl exec -it postgresql-0 -n postgresql -- bash
+        # psql -U postgres
+        # and enter password as pass
+
+        tool_status_manager.set_status(
+            "PostgreSQL", "PostgreSQL installation started successfully."
+        )
+
+        return jsonify({"message": "PostgreSQL install initiated"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/delete-postgresql", methods=["DELETE"])
+def delete_postgresql():
+    try:
+        # 1) Helm uninstall
+        r = uninstall_the_tool("PostgreSQL")
+        if r[1] != 200:
+            return r
+
+        # 2) PVC delete (chart default name: data-postgresql-0)
+        pvc = "data-postgresql-0"
+        r = delete_persistent_volume_claim(pvc, "postgresql")
+        if r[1] != 200:
+            return r
+
+        # 2) PV delete
+        pv = "postgresql-pv"
+        r = delete_pv(pv, "postgresql")
+        if r[1] != 200:
+            return r
+
+        # 3) Namespace delete
+        r = delete_namespace("postgresql")
+        if r[1] != 200:
+            return r
+
+        return jsonify({"message": "PostgreSQL deletion completed"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def configure_prometheus_scraping():
+    try:
+        # Create ServiceMonitor for Prometheus Operator
+        service_monitor = """
+        apiVersion: monitoring.coreos.com/v1
+        kind: ServiceMonitor
+        metadata:
+          name: opentelemetry
+          namespace: prom
+        spec:
+          endpoints:
+          - port: metrics
+            interval: 30s
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: opentelemetry-collector
+        """
+
+        with open("otel-service-monitor.yaml", "w") as f:
+            f.write(service_monitor)
+
+        subprocess.run(
+            "kubectl apply -f otel-service-monitor.yaml", shell=True, check=True
+        )
+        os.remove("otel-service-monitor.yaml")
+
+    except Exception as e:
+        print(f"Error configuring Prometheus: {e}")
+
+
 @app.route("/count-pods/<namespace>", methods=["GET"])
 def count_running_pods(namespace):
     pods = get_pods_in_namespace(namespace)
@@ -2401,6 +2737,10 @@ class ToolInstaller:
             "RabbitMQ": self.create_rabbitmq,
             "ArgoCD": self.create_argocd,
             "Jenkins": self.create_jenkins,
+            "OpenTelemetry": self.create_opentelemetry,
+            "Katib": self.create_katib,
+            "KFNotebooks": self.create_kfnotebooks,
+            "PostgreSQL": self.create_postgresql,
         }
 
     def install_tool(self, tool_name):
@@ -2415,43 +2755,56 @@ class ToolInstaller:
 
     def create_jupyterhub(self):
         # Implementation for JupyterHub
-        return jsonify({"message": "JupyterHub installed"})
+        return create_jupyterhub()
 
     def create_binderhub(self):
         # Implementation for BinderHub
-        return jsonify({"message": "BinderHub installed"})
+        return create_binderhub()
 
     def create_prometheus(self):
         # Implementation for Prometheus
-        return jsonify({"message": "Prometheus installed"})
+        return create_prometheus()
 
     def create_grafana(self):
         # Implementation for Grafana
-        return jsonify({"message": "Grafana installed"})
+        return create_grafana()
 
     def create_mariadb(self):
         # Implementation for MariaDB
-        return jsonify({"message": "MariaDB installed"})
+        return create_mariadb()
 
     def create_wordpress(self):
         # Implementation for Wordpress
-        return jsonify({"message": "Wordpress installed"})
+        return create_wordpress()
 
     def create_apache(self):
         # Implementation for Apache
-        return jsonify({"message": "Apache installed"})
+        return create_apache()
 
     def create_rabbitmq(self):
         # Implementation for RabbitMQ
-        return jsonify({"message": "RabbitMQ installed"})
+        return create_rabbitmq()
 
     def create_argocd(self):
         # Implementation for ArgoCD
-        return jsonify({"message": "ArgoCD installed"})
+        return create_argocd()
 
     def create_jenkins(self):
         # Implementation for Jenkins
-        return jsonify({"message": "Jenkins installed"})
+        return create_jenkins()
+
+    def create_opentelemetry(self):
+
+        return create_opentelemetry()
+
+    def create_katib(self):
+        return create_katib()
+
+    def create_kfnotebooks(self):
+        return create_kfnotebooks()
+
+    def create_postgresql(self):
+        return create_postgresql()
 
 
 # Flask route
@@ -2986,6 +3339,7 @@ def logout():
         # Remove user from all tool queues and waiting lists
         remove_user_from_all_queues(user_id)
         delete_all_pvs()
+        ACTIVE_USERS.dec()
         return (
             jsonify({"message": f"User {user_id} has been removed from all queues"}),
             200,
@@ -3154,6 +3508,39 @@ def uninstall_tool(tool_id):
 
             return jsonify({"message": "Jenkins tool uninstalled successfully."}), 200
 
+        if tool.get("tool_name") == "Katib":
+            # Call the delete_katib() function to delete the Katib tool
+            result = delete_katib()
+            if result[1] != 200:
+                # Return error response if Katib deletion failed
+                return result
+
+            return (jsonify({"message": "Katib tool uninstalled successfully."}),)
+
+        if tool.get("tool_name") == "KFNotebooks":
+            # Call the delete_kfnotebooks() function to delete the KFNotebooks tool
+            result = delete_kfnotebooks()
+            if result[1] != 200:
+                # Return error response if KFNotebooks deletion failed
+                return result
+
+            return (
+                jsonify({"message": "KFNotebooks tool uninstalled successfully."}),
+                200,
+            )
+
+        if tool.get("tool_name") == "PostgreSQL":
+            # Call the delete_postgresql() function to delete the PostgreSQL tool
+            result = delete_postgresql()
+            if result[1] != 200:
+                # Return error response if PostgreSQL deletion failed
+                return result
+
+            return (
+                jsonify({"message": "PostgreSQL tool uninstalled successfully."}),
+                200,
+            )
+
         helm_command = tool.get("helm_command")
         namespace = tool.get("namespace")
 
@@ -3188,6 +3575,38 @@ def uninstall_tool(tool_id):
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 200
+
+
+from prometheus_client import Counter, Histogram, generate_latest
+
+# Metrics definitions
+REQUEST_COUNTER = Counter(
+    "http_requests_total", "Total HTTP Requests", ["method", "endpoint", "status"]
+)
+
+REQUEST_DURATION = Histogram(
+    "http_request_duration_seconds", "HTTP Request Duration", ["method", "endpoint"]
+)
+
+
+# Middleware to track requests
+@app.before_request
+def before_request():
+    request.start_time = time.time()
+
+
+@app.after_request
+def after_request(response):
+    duration = time.time() - request.start_time
+    REQUEST_COUNTER.labels(request.method, request.path, response.status_code).inc()
+    REQUEST_DURATION.labels(request.method, request.path).observe(duration)
+    return response
+
+
+# Expose metrics endpoint
+@app.route("/metrics")
+def metrics():
+    return generate_latest()
 
 
 if __name__ == "__main__":
