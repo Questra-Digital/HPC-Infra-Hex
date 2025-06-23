@@ -118,3 +118,11 @@ kubectl expose service prometheus-server --type=NodePort --target-port=9090 --na
 
 kubectl expose service grafana --type=NodePort --target-port=3000 --name=grafana-ext -n prom
 
+### Command for copying files from local to pod
+kubectl cp ./game-for-apache apache-<pod-name>:/app -n apache
+
+### Command to get events sorted by last timestamp
+kubectl get events --namespace=apache --sort-by='.lastTimestamp'
+
+### Command to access by port-forwarding the rabbitmq
+kubectl port-forward svc/rabbitmq -n rabbitmq 15672:15672

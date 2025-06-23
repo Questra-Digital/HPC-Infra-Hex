@@ -1,0 +1,19 @@
+persistence:
+  existingClaim: data-my-rabbitmq
+
+service:
+  type: NodePort
+
+auth:
+  username: user
+  password: pass
+  tags: administrator
+  extraConfig: |
+    [
+      {rabbit, [
+        {default_user, <<"user">>},
+        {default_pass, <<"pass">>}
+      ]}
+    ]
+
+extraPlugins: "rabbitmq_management"

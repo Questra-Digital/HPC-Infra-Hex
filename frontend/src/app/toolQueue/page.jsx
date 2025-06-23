@@ -1,72 +1,59 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import axios from 'axios';
 import { useSearchParams } from 'next/navigation';
 import MainNavbar from '../Components/Shared/MainNavbar';
-import Swal from 'sweetalert2'; // Import SweetAlert
+import Swal from 'sweetalert2';
 import API_BASE_URL from '../URL';
-import { FiEdit3 } from 'react-icons/fi'; // Importing an edit icon
+import { FiEdit3 } from 'react-icons/fi';
 import ClipLoader from "react-spinners/ClipLoader";
-import { AiOutlineLoading3Quarters } from 'react-icons/ai'; // Importing a spinner icon
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
 const ToolsQueue = () => {
   const [runningQueue, setRunningQueue] = useState([]);
   const [waitingQueue, setWaitingQueue] = useState([]);
-  const [queueLimit, setQueueLimit] = useState(null); // State to store the queue limit
-  const [isEditing, setIsEditing] = useState(false); // State to manage edit mode
-  const [newQueueLimit, setNewQueueLimit] = useState(null); // State to store the new queue limit input
-  const [role, setRole] = useState(null); // State to store user role
-  const [showRunToolButton, setShowRunToolButton] = useState(false); // State to toggle showing "Run Tool" button
-
+  const [queueLimit, setQueueLimit] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newQueueLimit, setNewQueueLimit] = useState(null);
+  const [role, setRole] = useState(null);
+  const [showRunToolButton, setShowRunToolButton] = useState(false);
   const [namespace, setNamespace] = useState('');
   const [service, setService] = useState('');
-  const [initialLoading, setInitialLoading] = useState(true); // State to manage initial loading spinner
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [queueKey, setQueueKey] = useState(0);
 
   const searchParams = useSearchParams();
   const name = searchParams.get("name");
   const id = searchParams.get("id");
-  const [queueKey, setQueueKey] = useState(0);
 
   useEffect(() => {
-    // Retrieve the user role from session storage
     const userRole = sessionStorage.getItem('user_role');
     setRole(userRole);
 
     const fetchToolIdAndQueues = async () => {
       try {
-        // Fetch the queue limit using the tool ID
         const queueLimitResponse = await axios.get(`${API_BASE_URL}/get-queue-limit/${id}`);
         setQueueLimit(queueLimitResponse.data.queue_limit);
-        setNewQueueLimit(queueLimitResponse.data.queue_limit); // Set the newQueueLimit to the initial queueLimit
+        setNewQueueLimit(queueLimitResponse.data.queue_limit);
 
-        // Fetch the running queue
         const runningQueueResponse = await axios.post(`${API_BASE_URL}/queue`, { tool_id: id });
         setRunningQueue(runningQueueResponse.data.queue);
 
-        // Fetch the waiting queue using the tool ID
         const waitingQueueResponse = await axios.post(`${API_BASE_URL}/waiting-list`, { tool_id: id });
         setWaitingQueue(waitingQueueResponse.data.waiting_list);
 
-        // Fetch the tool details (namespace and service)
         const toolDetailsResponse = await axios.get(`${API_BASE_URL}/get-tool-details/${id}`);
         setNamespace(toolDetailsResponse.data.namespace);
         setService(toolDetailsResponse.data.service);
 
-
-        checkUserInQueue(); // Initial check when component mounts
-
-        // Check if user is in the queue every 10 seconds if showRunToolButton is false
+        checkUserInQueue();
         const interval = setInterval(() => {
           if (!showRunToolButton) {
-
             checkUserInQueue();
           }
         }, 10000);
 
-        // Clean up interval on component unmount or when showRunToolButton becomes true
         return () => clearInterval(interval);
-
-
       } catch (error) {
         console.error('Error fetching tool ID or queues:', error);
       } finally {
@@ -75,52 +62,27 @@ const ToolsQueue = () => {
     };
 
     fetchToolIdAndQueues();
-  }, [name, showRunToolButton, queueKey]); // Include showRunToolButton in dependency array
+  }, [name, showRunToolButton, queueKey]);
 
-
-
-
- 
-  const handleQueueLimitChange = (e) => {
-    setNewQueueLimit(e.target.value);
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      updateQueueLimit();
-    }
-  };
+  const handleQueueLimitChange = (e) => setNewQueueLimit(e.target.value);
+  const handleKeyPress = (e) => e.key === 'Enter' && updateQueueLimit();
 
   const updateQueueLimit = async () => {
     try {
-      const toolId = id;
       await axios.post(`${API_BASE_URL}/set-queue-limit`, {
-        tool_id: toolId,
+        tool_id: id,
         queue_limit: newQueueLimit
       });
       setQueueLimit(newQueueLimit);
       setIsEditing(false);
-      // Show success message
-      Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: 'Queue limit updated successfully!',
-      });
+      Swal.fire({ icon: 'success', title: 'Success!', text: 'Queue limit updated successfully!' });
     } catch (error) {
       console.error('Error updating queue limit:', error);
-      // Show error message
-      Swal.fire({
-        icon: 'error',
-        title: 'Error!',
-        text: 'Failed to update queue limit.',
-      });
+      Swal.fire({ icon: 'error', title: 'Error!', text: 'Failed to update queue limit.' });
     }
   };
 
-  const handleBlur = async () => {
-    setIsEditing(false); // Exit edit mode if no changes were made
-  };
-
+  const handleBlur = () => setIsEditing(false);
   const handleUseTool = async () => {
     try {
       const response = await axios.post(`${API_BASE_URL}/add-to-queue`, {
@@ -130,20 +92,10 @@ const ToolsQueue = () => {
       setRunningQueue(response.data.Queue || []);
       setWaitingQueue(response.data.waiting || []);
       setQueueKey(prevKey => prevKey + 1);
-      // Show success message
-      Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: response.data.user_status ? response.data.user_status.message : 'Added to queue successfully!',
-      });
+      Swal.fire({ icon: 'success', title: 'Success!', text: response.data.user_status ? response.data.user_status.message : 'Added to queue successfully!' });
     } catch (error) {
       console.error('Error adding to queue:', error);
-      // Show error message
-      Swal.fire({
-        icon: 'error',
-        title: 'Error!',
-        text: 'Failed to add to queue.',
-      });
+      Swal.fire({ icon: 'error', title: 'Error!', text: 'Failed to add to queue.' });
     }
   };
 
@@ -166,11 +118,7 @@ const ToolsQueue = () => {
       window.open(`http://192.168.56.10:${port}`, '_blank');
     } catch (error) {
       console.error('Error running tool:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error!',
-        text: 'Failed to run the tool.',
-      });
+      Swal.fire({ icon: 'error', title: 'Error!', text: 'Failed to run the tool.' });
     }
   };
 
@@ -251,9 +199,13 @@ const ToolsQueue = () => {
         </div>
       </div>
     </div>
-
   );
-
 };
 
-export default ToolsQueue;
+export default function ToolsQueueWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ToolsQueue />
+    </Suspense>
+  );
+}

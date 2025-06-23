@@ -1,0 +1,70 @@
+# my-values.yaml
+
+# Deploy as a Deployment
+mode: "deployment"
+
+# Enable the k8sattributes processor and k8scluster receiver via presets
+presets:
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: true
+    extractAllPodAnnotations: false
+  clusterMetrics:
+    enabled: true
+
+# Use the Contrib image
+image:
+  repository: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib"
+  tag: "0.98.0"
+  pullPolicy: IfNotPresent
+
+# Override the Collector's configuration with healthcheck extension and telemetry settings
+config:
+  extensions:
+    health_check:
+      endpoint: "0.0.0.0:13134"
+  service:
+    extensions: [health_check]
+    telemetry:
+      metrics:
+        address: "0.0.0.0:8889"
+
+# Expose the new metrics port via the Service
+ports:
+  metrics:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP
+
+# Set the service type to NodePort
+service:
+  type: NodePort
+
+# Resource requests/limits
+resources:
+  limits:
+    cpu: "1"
+    memory: "1Gi"
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+
+# Probes must point at the new health port
+readinessProbe:
+  httpGet:
+    port: 13134
+    path: "/"
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 1
+  failureThreshold: 3
+
+livenessProbe:
+  httpGet:
+    port: 13134
+    path: "/"
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  timeoutSeconds: 1
+  failureThreshold: 3
