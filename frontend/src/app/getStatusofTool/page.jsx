@@ -65,7 +65,10 @@ const GetStatus = () => {
             response = await axios.get(`${API_BASE_URL}/get-pods/otel-collector`);
           } else if (name === "Katib") {
             response = await axios.get(`${API_BASE_URL}/get-pods/katib`);
-          } else if (name === "PostgreSQL") {
+          } else if (name === "KFNotebooks") {
+            response = await axios.get(`${API_BASE_URL}/get-pods/kf-notebooks`);
+          }
+          else if (name === "PostgreSQL") {
             response = await axios.get(`${API_BASE_URL}/get-pods/postgresql`);
           }
           else {
@@ -117,6 +120,8 @@ const GetStatus = () => {
         endpoint = `${API_BASE_URL}/get-service-port/otel-collector/otel-collector`;
       } else if (name === "Katib") {
         endpoint = `${API_BASE_URL}/get-service-port/katib/katib-ui`;
+      } else if (name === "KFNotebooks") {
+        endpoint = `${API_BASE_URL}/get-service-port/kf-notebooks/kf-notebooks-vscode`;
       } else if (name === "PostgreSQL") {
         endpoint = `${API_BASE_URL}/get-service-port/postgresql/postgresql`;
       } 

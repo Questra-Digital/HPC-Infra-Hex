@@ -2310,13 +2310,19 @@ def create_kfnotebooks():
         pv["spec"]["nfs"]["server"] = kfnotebooks["nfs_server"]
         pv["spec"]["mountOptions"] = ["nfsvers=4.1"]
 
-        yaml.dump(pv, open("temp-pv.yaml", "w"))
-        r = create_pv(namespace, "temp-pv.yaml", kfnotebooks["pv_name"])
+        temp_pv_path = "temp-pv.yaml"
+        file_to_remove = f"temp_{temp_pv_path}"
+        yaml.dump(pv, open(temp_pv_path, "w"))
+        r = create_pv(namespace, temp_pv_path, kfnotebooks["pv_name"])
         if r[1] != 200:
+            os.remove(file_to_remove)
+            os.remove(temp_pv_path)
             return r
 
         # 3) Helm install (jo chart PVC banayega)
         r = install_the_tool("KFNotebooks")
+        os.remove(temp_pv_path)
+        os.remove(file_to_remove)
         if r[1] != 200:
             return jsonify({"error": f"Install failed: {r[0].get_json()}"}), 500
 
@@ -2330,6 +2336,10 @@ def create_kfnotebooks():
             }
         )
     except Exception as e:
+        if os.path.exists("temp-pv.yaml"):
+            os.remove("temp-pv.yaml")
+        if os.path.exists(file_to_remove):
+            os.remove(file_to_remove)
         return jsonify({"error": str(e)}), 500
 
 
